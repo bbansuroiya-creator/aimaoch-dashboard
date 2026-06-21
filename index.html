@@ -2473,8 +2473,8 @@ let _dbReady = false;
 
 // Split large arrays into separate docs to stay under 1MB Firestore limit
 // po_items is chunked into groups of 3000 to handle large datasets
-const _PO_CHUNK = 3000;
-const _PO_MAX_CHUNKS = 5; // supports up to 15,000 PO items
+const _PO_CHUNK = 1000;
+const _PO_MAX_CHUNKS = 10; // supports up to 10,000 PO items
 
 async function _fsLoad() {
   const fetches = [
@@ -8280,7 +8280,7 @@ function confirmClearAll() {
     _COL.doc('po_items').delete(),  // legacy
     _COL.doc('daily_inc').delete(),
   ];
-  for (let i = 0; i < _PO_MAX_CHUNKS; i++) delWrites.push(_COL.doc(`po_items_${i}`).delete());
+  for (let i = 0; i < 10; i++) delWrites.push(_COL.doc(`po_items_${i}`).delete());
   Promise.all(delWrites).catch(()=>{});
   toast('🗑️ ล้างข้อมูลทั้งหมดแล้ว — กำลังโหลดใหม่...', '');
   setTimeout(() => location.reload(), 1200);
