@@ -2472,25 +2472,39 @@ let _dbCache = {};
 let _dbReady = false;
 
 // Split large arrays into separate docs to stay under 1MB Firestore limit
+// po_items is chunked into groups of 3000 to handle large datasets
+const _PO_CHUNK = 3000;
+const _PO_MAX_CHUNKS = 5; // supports up to 15,000 PO items
+
 async function _fsLoad() {
-  const [mainSnap, poSnap, incSnap] = await Promise.all([
+  const fetches = [
     _COL.doc('main').get(),
-    _COL.doc('po_items').get(),
     _COL.doc('daily_inc').get(),
-  ]);
+  ];
+  for (let i = 0; i < _PO_MAX_CHUNKS; i++) fetches.push(_COL.doc(`po_items_${i}`).get());
+  const results = await Promise.all(fetches);
+  const mainSnap = results[0];
+  const incSnap  = results[1];
+  const poSnaps  = results.slice(2);
+  const po_items = poSnaps.flatMap(s => s.exists ? (s.data().items || []) : []);
   return {
     ...(mainSnap.exists ? mainSnap.data() : {}),
-    po_items:  poSnap.exists  ? (poSnap.data().items  || []) : [],
+    po_items,
     daily_inc: incSnap.exists ? (incSnap.data().items || []) : [],
   };
 }
 async function _fsSave(d) {
   const { po_items = [], daily_inc = [], ...rest } = d;
-  await Promise.all([
+  const writes = [
     _COL.doc('main').set(rest),
-    _COL.doc('po_items').set({ items: po_items }),
     _COL.doc('daily_inc').set({ items: daily_inc }),
-  ]);
+  ];
+  // Chunk po_items into multiple docs
+  for (let i = 0; i < _PO_MAX_CHUNKS; i++) {
+    const chunk = po_items.slice(i * _PO_CHUNK, (i + 1) * _PO_CHUNK);
+    writes.push(_COL.doc(`po_items_${i}`).set({ items: chunk }));
+  }
+  await Promise.all(writes);
 }
 
 function loadData() { return _dbCache; }
