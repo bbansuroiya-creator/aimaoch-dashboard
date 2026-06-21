@@ -8262,11 +8262,13 @@ function confirmClearAll() {
   if (!confirm('กด OK อีกครั้งเพื่อยืนยัน — ข้อมูลจะถูกลบทันที')) return;
   _dbCache = {};
   localStorage.removeItem('aimaoch_v2');
-  Promise.all([
+  const delWrites = [
     _COL.doc('main').delete(),
-    _COL.doc('po_items').delete(),
+    _COL.doc('po_items').delete(),  // legacy
     _COL.doc('daily_inc').delete(),
-  ]).catch(()=>{});
+  ];
+  for (let i = 0; i < _PO_MAX_CHUNKS; i++) delWrites.push(_COL.doc(`po_items_${i}`).delete());
+  Promise.all(delWrites).catch(()=>{});
   toast('🗑️ ล้างข้อมูลทั้งหมดแล้ว — กำลังโหลดใหม่...', '');
   setTimeout(() => location.reload(), 1200);
 }
