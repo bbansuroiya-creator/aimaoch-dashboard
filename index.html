@@ -8,6 +8,8 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <style>
 :root {
   /* Brand */
@@ -2452,11 +2454,53 @@ input[type="date"].form-input { font-family: var(--font-sans); }
 
 <script>
 // ════════════════════════════════════════════
-// DATA & STORAGE
+// FIREBASE + DATA STORAGE
 // ════════════════════════════════════════════
+const _fbApp = firebase.initializeApp({
+  apiKey: "AIzaSyA8tnLt-GdLX-AEXtKImIkC5HbNzOGgu-U",
+  authDomain: "aimaoch-dashboard-3b057.firebaseapp.com",
+  projectId: "aimaoch-dashboard-3b057",
+  storageBucket: "aimaoch-dashboard-3b057.firebasestorage.app",
+  messagingSenderId: "399660520623",
+  appId: "1:399660520623:web:abe97679e932a86dda305a"
+});
+const _db = firebase.firestore(_fbApp);
+const _COL = _db.collection('aimaoch');
+
+// In-memory cache — all code reads/writes go through here
+let _dbCache = {};
+let _dbReady = false;
+
+// Split large arrays into separate docs to stay under 1MB Firestore limit
+async function _fsLoad() {
+  const [mainSnap, poSnap, incSnap] = await Promise.all([
+    _COL.doc('main').get(),
+    _COL.doc('po_items').get(),
+    _COL.doc('daily_inc').get(),
+  ]);
+  return {
+    ...(mainSnap.exists ? mainSnap.data() : {}),
+    po_items:  poSnap.exists  ? (poSnap.data().items  || []) : [],
+    daily_inc: incSnap.exists ? (incSnap.data().items || []) : [],
+  };
+}
+async function _fsSave(d) {
+  const { po_items = [], daily_inc = [], ...rest } = d;
+  await Promise.all([
+    _COL.doc('main').set(rest),
+    _COL.doc('po_items').set({ items: po_items }),
+    _COL.doc('daily_inc').set({ items: daily_inc }),
+  ]);
+}
+
+function loadData() { return _dbCache; }
+function saveData(d) {
+  _dbCache = d;
+  _fsSave(d).catch(e => console.error('Firestore write error:', e));
+}
+
+// localStorage fallback key (kept for migration only)
 const SK = 'aimaoch_v2';
-function loadData() { try { return JSON.parse(localStorage.getItem(SK)) || {}; } catch { return {}; } }
-function saveData(d) { localStorage.setItem(SK, JSON.stringify(d)); }
 
 const MONTHS = ['','มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 const DAY_TH = ['อา','จ','อ','พ','พฤ','ศ','ส'];
@@ -8198,7 +8242,13 @@ function confirmRestore() {
 function confirmClearAll() {
   if (!confirm('⚠️ ยืนยันการลบข้อมูลทั้งหมด?\n\nข้อมูลทุกอย่างจะหายไปถาวร\nกรุณา Backup ก่อนดำเนินการ')) return;
   if (!confirm('กด OK อีกครั้งเพื่อยืนยัน — ข้อมูลจะถูกลบทันที')) return;
+  _dbCache = {};
   localStorage.removeItem('aimaoch_v2');
+  Promise.all([
+    _COL.doc('main').delete(),
+    _COL.doc('po_items').delete(),
+    _COL.doc('daily_inc').delete(),
+  ]).catch(()=>{});
   toast('🗑️ ล้างข้อมูลทั้งหมดแล้ว — กำลังโหลดใหม่...', '');
   setTimeout(() => location.reload(), 1200);
 }
@@ -9148,14 +9198,48 @@ function guardSession() {
 // ════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', () => {
-  migrateCategoryNames(); // one-time migration
+document.addEventListener('DOMContentLoaded', async () => {
+  // Show loading indicator
+  document.body.style.opacity = '0.4';
+
+  try {
+    // Try loading from Firestore
+    const fsData = await _fsLoad();
+    if (Object.keys(fsData).length > 0) {
+      _dbCache = fsData;
+    } else {
+      // Firestore empty — migrate from localStorage if available
+      const lsRaw = localStorage.getItem(SK);
+      if (lsRaw) {
+        _dbCache = JSON.parse(lsRaw);
+        await _fsSave(_dbCache); // push to Firestore
+        toast('📤 ย้ายข้อมูลจากเครื่องนี้ขึ้น Cloud แล้ว', 'success');
+      }
+    }
+  } catch (e) {
+    console.error('Firestore init error:', e);
+    // Offline fallback
+    try { _dbCache = JSON.parse(localStorage.getItem(SK)) || {}; } catch {}
+    toast('⚠️ ไม่สามารถเชื่อมต่อ Cloud — ใช้ข้อมูลในเครื่อง', 'warning');
+  }
+
+  document.body.style.opacity = '';
+  _dbReady = true;
+
+  // Real-time listener — update cache when another device saves
+  _COL.doc('main').onSnapshot(async snap => {
+    if (!_dbReady || !snap.exists) return;
+    const fresh = await _fsLoad();
+    _dbCache = fresh;
+    renderOverview();
+  }, () => {});
+
+  migrateCategoryNames();
   const now = new Date();
   const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const sel = document.getElementById('globalMonth');
   if ([...sel.options].some(o=>o.value===ym)) sel.value=ym;
 
-  // Auth init
   const u = getCurrentUser();
   if (!u) {
     showLoginScreen();
