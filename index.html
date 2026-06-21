@@ -8244,17 +8244,30 @@ function handleRestoreFile(file) {
   reader.readAsText(file);
 }
 
-function confirmRestore() {
+async function confirmRestore() {
   if (!_restorePayload) return;
   if (!confirm('⚠️ ยืนยันการ Restore?\n\nข้อมูลปัจจุบันทั้งหมดจะถูกแทนที่ด้วยข้อมูลจากไฟล์ backup\n\nไม่สามารถย้อนกลับได้')) return;
-  saveData(_restorePayload);
+  const payload = _restorePayload;
   _restorePayload = null;
   document.getElementById('restore-file').value = '';
   document.getElementById('restore-preview').style.display = 'none';
   document.getElementById('restore-btn').style.display = 'none';
-  renderBackupInfo();
-  toast('✅ Restore สำเร็จ — โหลดหน้าใหม่เพื่อให้ข้อมูลอัปเดต', 'success');
-  setTimeout(() => location.reload(), 1800);
+  _dbCache = payload;
+  if (window.location.protocol === 'file:') {
+    localStorage.setItem(SK, JSON.stringify(payload));
+    toast('✅ Restore สำเร็จ — กำลังโหลดใหม่...', 'success');
+    setTimeout(() => location.reload(), 1500);
+  } else {
+    toast('⏳ กำลังบันทึกข้อมูลขึ้น Cloud กรุณารอสักครู่...', '');
+    try {
+      await _fsSave(payload);
+      toast('✅ Restore สำเร็จ — กำลังโหลดใหม่...', 'success');
+    } catch(e) {
+      console.error('Restore error:', e);
+      toast('⚠️ บันทึกไม่ครบ: ' + e.message, 'error');
+    }
+    setTimeout(() => location.reload(), 1500);
+  }
 }
 
 function confirmClearAll() {
