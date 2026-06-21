@@ -2510,7 +2510,11 @@ async function _fsSave(d) {
 function loadData() { return _dbCache; }
 function saveData(d) {
   _dbCache = d;
-  _fsSave(d).catch(e => console.error('Firestore write error:', e));
+  if (window.location.protocol === 'file:') {
+    localStorage.setItem(SK, JSON.stringify(d));
+  } else {
+    _fsSave(d).catch(e => console.error('Firestore write error:', e));
+  }
 }
 
 // localStorage fallback key (kept for migration only)
@@ -9213,40 +9217,45 @@ function guardSession() {
 // INIT
 // ════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', async () => {
-  // Show loading indicator
+  const _IS_LOCAL = window.location.protocol === 'file:';
+
   document.body.style.opacity = '0.4';
 
-  try {
-    // Try loading from Firestore
-    const fsData = await _fsLoad();
-    if (Object.keys(fsData).length > 0) {
-      _dbCache = fsData;
-    } else {
-      // Firestore empty — migrate from localStorage if available
-      const lsRaw = localStorage.getItem(SK);
-      if (lsRaw) {
-        _dbCache = JSON.parse(lsRaw);
-        await _fsSave(_dbCache); // push to Firestore
-        toast('📤 ย้ายข้อมูลจากเครื่องนี้ขึ้น Cloud แล้ว', 'success');
-      }
-    }
-  } catch (e) {
-    console.error('Firestore init error:', e);
-    // Offline fallback
+  if (_IS_LOCAL) {
+    // Local file — use localStorage directly (no Firestore)
     try { _dbCache = JSON.parse(localStorage.getItem(SK)) || {}; } catch {}
-    toast('⚠️ ไม่สามารถเชื่อมต่อ Cloud — ใช้ข้อมูลในเครื่อง', 'warning');
+  } else {
+    // Hosted version — use Firestore
+    try {
+      const fsData = await _fsLoad();
+      if (Object.keys(fsData).length > 0) {
+        _dbCache = fsData;
+      } else {
+        // Firestore empty — migrate from localStorage if available
+        const lsRaw = localStorage.getItem(SK);
+        if (lsRaw) {
+          _dbCache = JSON.parse(lsRaw);
+          await _fsSave(_dbCache);
+          toast('📤 ย้ายข้อมูลจากเครื่องนี้ขึ้น Cloud แล้ว', 'success');
+        }
+      }
+    } catch (e) {
+      console.error('Firestore init error:', e);
+      try { _dbCache = JSON.parse(localStorage.getItem(SK)) || {}; } catch {}
+      toast('⚠️ ไม่สามารถเชื่อมต่อ Cloud — ใช้ข้อมูลในเครื่อง', 'warning');
+    }
+
+    // Real-time listener
+    _COL.doc('main').onSnapshot(async snap => {
+      if (!_dbReady || !snap.exists) return;
+      const fresh = await _fsLoad();
+      _dbCache = fresh;
+      renderOverview();
+    }, () => {});
   }
 
   document.body.style.opacity = '';
   _dbReady = true;
-
-  // Real-time listener — update cache when another device saves
-  _COL.doc('main').onSnapshot(async snap => {
-    if (!_dbReady || !snap.exists) return;
-    const fresh = await _fsLoad();
-    _dbCache = fresh;
-    renderOverview();
-  }, () => {});
 
   migrateCategoryNames();
   const now = new Date();
