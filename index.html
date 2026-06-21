@@ -1140,6 +1140,24 @@ input[type="date"].form-input { font-family: var(--font-sans); }
           </button>
         </div>
 
+        <!-- ล้าง PO เก่ากว่า 3 เดือน -->
+        <div class="card card-pad" style="border:1px solid #e0f2fe">
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+            <div style="width:44px;height:44px;border-radius:12px;background:#e0f2fe;display:flex;align-items:center;justify-content:center;font-size:22px">🛒</div>
+            <div>
+              <div style="font-weight:700;font-size:16px;color:#0369a1">ล้าง PO เก่ากว่า 3 เดือน</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:2px">ลบรายการจัดซื้อที่เก่ากว่า 3 เดือน — ราคาวัตถุดิบยังคงอยู่ใน Item Master</div>
+            </div>
+          </div>
+          <div id="purge-po-preview" style="background:var(--ink-50);border-radius:8px;padding:12px 14px;font-size:13px;margin-bottom:12px;display:none"></div>
+          <button class="btn" style="width:100%;background:#fff;color:#0369a1;border:1.5px solid #bae6fd" onclick="previewPurgeOldPO()">
+            🔍 ดูรายการที่จะลบ
+          </button>
+          <button id="purge-po-btn" class="btn" style="width:100%;display:none;background:#fff;color:#0369a1;border:1.5px solid #0369a1;margin-top:8px" onclick="purgeOldPO()">
+            🗑 ลบ PO เก่ากว่า 3 เดือน
+          </button>
+        </div>
+
         <!-- Danger zone -->
         <div class="card card-pad" style="border:1px solid #fecaca">
           <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
@@ -8153,6 +8171,50 @@ function purgeYear() {
   saveData(data);
   toast(`✅ ลบข้อมูลปี ${year} เรียบร้อยแล้ว`, 'success');
   renderPurgeYearSel();
+  renderBackupInfo();
+}
+
+function _getCutoffDate(monthsAgo) {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() - monthsAgo);
+  return d.toISOString().slice(0, 7); // YYYY-MM
+}
+
+function previewPurgeOldPO() {
+  const cutoff = _getCutoffDate(3);
+  const data = loadData();
+  const old = (data.po_items||[]).filter(i => i.date?.slice(0,7) < cutoff);
+  const keep = (data.po_items||[]).length - old.length;
+  const prev = document.getElementById('purge-po-preview');
+  const btn  = document.getElementById('purge-po-btn');
+  if (!old.length) {
+    prev.style.display = '';
+    prev.innerHTML = '✅ ไม่มีรายการที่เก่ากว่า 3 เดือน';
+    btn.style.display = 'none';
+    return;
+  }
+  prev.style.display = '';
+  prev.innerHTML = `จะลบ <strong>${old.length.toLocaleString()} รายการ</strong> (ก่อน ${cutoff})<br>
+    คงเหลือ <strong>${keep.toLocaleString()} รายการ</strong> (3 เดือนล่าสุด)`;
+  btn.style.display = '';
+}
+
+async function purgeOldPO() {
+  const cutoff = _getCutoffDate(3);
+  if (!confirm(`⚠️ ยืนยันลบ PO ที่เก่ากว่า ${cutoff}?\n\nราคาวัตถุดิบยังอยู่ใน Item Master\nกด OK เพื่อยืนยัน`)) return;
+  const data = loadData();
+  const before = (data.po_items||[]).length;
+  data.po_items = (data.po_items||[]).filter(i => i.date?.slice(0,7) >= cutoff);
+  const removed = before - data.po_items.length;
+  document.getElementById('purge-po-preview').innerHTML = '⏳ กำลังบันทึก...';
+  document.getElementById('purge-po-btn').style.display = 'none';
+  if (window.location.protocol !== 'file:') {
+    try { await _fsSave(data); } catch(e) { toast('⚠️ บันทึกไม่สำเร็จ: ' + e.message, 'error'); return; }
+  }
+  _dbCache = data;
+  if (window.location.protocol === 'file:') localStorage.setItem(SK, JSON.stringify(data));
+  toast(`✅ ลบ PO ${removed.toLocaleString()} รายการแล้ว`, 'success');
   renderBackupInfo();
 }
 
