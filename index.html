@@ -612,7 +612,7 @@ input[type="date"].form-input { font-family: var(--font-sans); }
 <!-- ════════════ SIDEBAR ════════════ -->
 <aside id="sidebar">
   <div class="sb-logo">
-    <img src="logo.png" alt="เอมโอช" style="height:28px;width:auto;object-fit:contain;flex:none">
+    <img id="sidebar-logo-img" src="" alt="เอมโอช" style="height:28px;width:auto;object-fit:contain;flex:none;display:none">
     <span style="font-size:20px;font-weight:700;color:var(--brand);letter-spacing:-.01em">เอมโอช</span>
   </div>
   <nav>
@@ -9019,6 +9019,13 @@ function updateSidebarUser() {
     const pg = btn.dataset.page;
     btn.style.display = hasAccess(pg) ? '' : 'none';
   });
+  // sidebar logo from Firestore
+  const logoImg = document.getElementById('sidebar-logo-img');
+  if (logoImg) {
+    const logoSrc = loadData().shopLogo;
+    if (logoSrc) { logoImg.src = logoSrc; logoImg.style.display = ''; }
+    else logoImg.style.display = 'none';
+  }
   // hide sb-labels if all items below them are hidden
   document.querySelectorAll('#sidebar .sb-label').forEach(lbl => {
     let next = lbl.nextElementSibling;
