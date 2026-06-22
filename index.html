@@ -7086,8 +7086,8 @@ function computePLFromData(year) {
       const liveExp = liveTxs.reduce((a,t)=>a+(t.amount||0),0);
       const liveRev = liveInc.reduce((a,e)=>a+(e.total||0),0);
       const liveSalary = ((data.salary_v2||{})[mStr0]||[]).reduce((a,e)=>a+(e.amount||0),0);
-      // เดือนที่ไม่มี snapshot revenue เลย → ใช้ live ล้วน
-      if (!s.revenue && (liveRev > 0 || liveExp > 0)) {
+      // เดือนที่มี daily_inc จริง (บันทึกรายรับผ่านหน้าจอ) หรือไม่มี snapshot revenue → ใช้ live ล้วน
+      if (liveInc.length > 0 || (!s.revenue && liveExp > 0)) {
         result[mo] = {
           revenue: liveRev, cogs_total: 0, gross_profit: liveRev,
           opex_total: liveExp + liveSalary, ebt: liveRev - liveExp - liveSalary,
