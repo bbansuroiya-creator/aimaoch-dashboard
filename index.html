@@ -5086,6 +5086,8 @@ function savePricing(createExpense, targetSup) {
   } else {
     closePriceModal();
     _renderPODaily();
+    const pid = document.querySelector('.page.active')?.id?.replace('page-','');
+    if (pid === 'transactions') renderTxTable();
   }
 }
 
@@ -7063,6 +7065,29 @@ function computePLFromData(year) {
     const result = {};
     for (let mo = 1; mo <= 12; mo++) {
       const s = snap[String(mo)] || {};
+      const mStr0 = `${year}-${String(mo).padStart(2,'0')}`;
+      const hasLiveTxs = (data.txs||[]).some(t => t.date.startsWith(mStr0) && t.type==='expense' && !t.auto);
+      const hasLiveInc = (data.daily_inc||[]).some(e => e.date.startsWith(mStr0));
+      // เดือนที่มีข้อมูล live ให้คำนวณจาก live data แทน snapshot
+      if ((hasLiveTxs || hasLiveInc) && !s.revenue) {
+        // คำนวณ live สำหรับเดือนนี้แล้วใส่ result — ส่วนที่เหลือของ loop จะข้ามไป
+        const liveTxs = (data.txs||[]).filter(t => t.date.startsWith(mStr0) && t.type==='expense' && !t.auto);
+        const liveInc = (data.daily_inc||[]).filter(e => e.date.startsWith(mStr0));
+        const liveRev = liveInc.reduce((a,e)=>a+(e.total||0),0);
+        const liveExp = liveTxs.reduce((a,t)=>a+(t.amount||0),0);
+        const liveSalary = ((data.salary_v2||{})[mStr0]||[]).reduce((a,e)=>a+(e.amount||0),0);
+        result[mo] = {
+          revenue: liveRev, cogs_total: 0, gross_profit: liveRev,
+          opex_total: liveExp + liveSalary, ebt: liveRev - liveExp - liveSalary,
+          tax: 0, net_profit: liveRev - liveExp - liveSalary,
+          rev_food: liveInc.reduce((a,e)=>a+(e.rev_food||0),0),
+          rev_drink_na: liveInc.reduce((a,e)=>a+(e.rev_drink_na||0),0),
+          rev_alc: liveInc.reduce((a,e)=>a+(e.rev_alc||0),0),
+          rev_event: liveInc.reduce((a,e)=>a+(e.rev_event||0),0),
+          rev_other: liveInc.reduce((a,e)=>a+(e.rev_other||0),0),
+        };
+        continue;
+      }
       // map snapshot keys → expected keys ใน renderPL
       // For snapshot months, pull rev breakdown from daily_inc if exists
       const mStr2 = `${year}-${String(mo).padStart(2,'0')}`;
