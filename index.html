@@ -3839,7 +3839,7 @@ function renderTxTable() {
   if (!allRows.length) { body.innerHTML=''; empty.style.display='flex'; return; }
   empty.style.display='none';
 
-  const STATUS_BADGE = {done:'<span class="badge badge-success">ชำระแล้ว</span>', unpaid:'<span class="badge badge-warning">ค้างชำระ</span>'};
+  const STATUS_BADGE = {done:'<span class="badge badge-success">ชำระแล้ว</span>', unpaid:'<span class="badge badge-warning">ค้างชำระ</span>', po:'<span class="badge" style="background:#dbeafe;color:#1d4ed8;font-weight:600">จ่ายแล้ว-จาก PO</span>'};
   const INC_CH_NAMES = {cash:'เงินสด',transfer:'โอนเงิน',delivery:'Delivery',visa:'Visa',mc:'MC',jcb:'JCB',credit:'ค้างชำระ',used:'ยอดใช้'};
 
   body.innerHTML = allRows.map(r=>{
@@ -5045,7 +5045,7 @@ function savePricing(createExpense, targetSup) {
       const chosenCat = catSelEl?.value || _supToExpCat(sup);
       data.txs.push({
         id: Date.now().toString() + Math.random().toString(36).slice(2),
-        date: _priceDate, type: 'expense', status: 'done',
+        date: _priceDate, type: 'expense', status: 'po',
         name: sup, cat: chosenCat,
         amount: net, note: notes
       });
@@ -7505,9 +7505,9 @@ function migrateCategoryNames() {
 
 function migrateExpensesToTxs() {
   const data = loadData();
-  // Fix status 'paid' → 'done' for existing entries
+  // Fix status 'paid' → 'po' for existing entries from PO
   let fixedStatus = 0;
-  (data.txs||[]).forEach(t => { if (t.status === 'paid') { t.status = 'done'; fixedStatus++; } });
+  (data.txs||[]).forEach(t => { if (t.status === 'paid' || t.status === 'done' && t.name?.startsWith('ซื้อวัตถุดิบจาก')) { t.status = 'po'; fixedStatus++; } });
   if (fixedStatus > 0) saveData(data);
   if (!data.expenses || !data.expenses.length) return;
   if (!data.txs) data.txs = [];
@@ -7519,7 +7519,7 @@ function migrateExpensesToTxs() {
       id: e.id || (Date.now().toString() + Math.random().toString(36).slice(2)),
       date: e.date,
       type: 'expense',
-      status: 'done',
+      status: 'po',
       name: e.desc || e.name || 'จัดซื้อ',
       cat: e.cat || '',
       amount: e.amount || 0,
