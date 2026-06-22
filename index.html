@@ -7133,10 +7133,8 @@ function computePLFromData(year) {
         opex_repair: s.opex_repair||0, opex_depreciation: 0,
         opex_rent_ice: s.cogs_rent_ice||0, opex_rent_washer: s.cogs_rent_washer||0,
         opex_selling_total: (s.opex_total||0) - (s.opex_admin_total||0) - (s.opex_repair||0) + (s.cogs_rent_ice||0) + (s.cogs_rent_washer||0),
-        opex_total: (s.opex_total||0) + (s.cogs_rent_ice||0) + (s.cogs_rent_washer||0) + liveExp + liveSalary,
-        ebt: (s.ebt||0) - liveExp - liveSalary,
-        tax: s.tax||0,
-        net_profit: (s.net_profit||0) - liveExp - liveSalary,
+        opex_total: (s.opex_total||0) + (s.cogs_rent_ice||0) + (s.cogs_rent_washer||0),
+        ebt: s.ebt||0, tax: s.tax||0, net_profit: s.net_profit||0,
       };
     }
     return result;
