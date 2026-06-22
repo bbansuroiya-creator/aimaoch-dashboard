@@ -3981,14 +3981,22 @@ function renderOverview() {
   const pendingDeps = (data.deposits||[]).filter(d=>d.status==='pending');
   const pendingDepAmt = pendingDeps.reduce((s,d)=>s+d.amount,0);
   const outstandingAmt = (data.deposits||[]).filter(d=>d.status==='used').reduce((s,d)=>s+(d.outstanding||0),0);
-  const netDepAmt = pendingDepAmt - outstandingAmt;
   const ovUnpaidEl = document.getElementById('ov-unpaid');
-  ovUnpaidEl.textContent = netDepAmt < 0 ? `-฿${Math.abs(netDepAmt).toLocaleString('th-TH')}` : baht(netDepAmt);
-  ovUnpaidEl.style.color = netDepAmt < 0 ? 'var(--danger-700)' : '';
-  const noteparts = [];
-  if (pendingDeps.length) noteparts.push(pendingDeps.length + ' รายการรอรับรู้');
-  if (outstandingAmt > 0) noteparts.push(`ค้างชำระ ฿${outstandingAmt.toLocaleString('th-TH')}`);
-  document.getElementById('ov-unpaid-note').textContent = noteparts.length ? noteparts.join(' · ') : 'ไม่มีมัดจำค้างอยู่';
+  if (outstandingAmt > 0) {
+    // ค้างชำระเป็นหลัก — แสดงติดลบ
+    ovUnpaidEl.textContent = `-฿${outstandingAmt.toLocaleString('th-TH')}`;
+    ovUnpaidEl.style.color = 'var(--danger-700)';
+    const noteparts = [];
+    if (pendingDeps.length) noteparts.push(`รอรับรู้ ฿${pendingDepAmt.toLocaleString('th-TH')}`);
+    noteparts.push(`ค้างชำระ ฿${outstandingAmt.toLocaleString('th-TH')}`);
+    document.getElementById('ov-unpaid-note').textContent = noteparts.join(' · ');
+  } else {
+    ovUnpaidEl.textContent = baht(pendingDepAmt);
+    ovUnpaidEl.style.color = '';
+    document.getElementById('ov-unpaid-note').textContent = pendingDeps.length
+      ? pendingDeps.length + ' รายการรอรับรู้ →'
+      : 'ไม่มีมัดจำค้างอยู่';
+  }
 
   // Sync toggle button styles (inline — don't call setOvMode to avoid recursion)
   const _btnDay   = document.getElementById('ov-toggle-day');
