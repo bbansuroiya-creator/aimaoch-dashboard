@@ -3937,6 +3937,12 @@ function renderOverview() {
     totalExp = (snap.cogs_total||0) + (snap.opex_total||0) + (snap.tax||0);
     gp = snap.net_profit||0;
     useSnap = true;
+  } else if (_isLiveMonthOv) {
+    // Live month: ใช้ computePLFromData เพื่อให้ตรงกับ P&L (รวม salary)
+    const plMo = (computePLFromData(year)||{})[mo] || {};
+    totalExp = (plMo.cogs_total||0) + (plMo.opex_total||0) + (plMo.tax||0);
+    gp = plMo.net_profit || (totalInc - totalExp);
+    useSnap = true; // ใช้ flag เพื่อแสดง label "กำไรสุทธิ"
   } else {
     const txExp = txs.filter(t=>t.type==='expense' && !(t.note||'').includes('P&L')).reduce((s,t)=>s+t.amount,0);
     const moDeliveryInc = dailyInc.reduce((s,e)=>s+(e.delivery||0),0);
