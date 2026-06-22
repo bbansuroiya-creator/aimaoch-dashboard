@@ -7091,15 +7091,55 @@ function computePLFromData(year) {
       const _curMo = (_now.getFullYear() === parseInt(year)) ? _now.getMonth() + 1 : 0;
       const _isLiveMonth = mo >= _curMo;
       if (_isLiveMonth && (liveInc.length > 0 || liveExp > 0)) {
+        // Full computation for live months (same logic as non-snapshot path)
+        const _di = liveInc, _tx = liveTxs;
+        const _sal = ((data.salary_v2||{})[mStr0]||[]);
+        const _sc = pred => _tx.filter(t=>pred(t.cat||'')).reduce((s,t)=>s+t.amount,0);
+        const _lb = data.tx_cat_buckets||{};
+        const _gb = cat => _lb[cat]??_BUCKET_DEFAULTS[cat]??'opex';
+        const _ct = new Set(['ค่าเครื่องดื่ม-โค้ก','ค่าเครื่องดื่ม Non Al-ธ.ภัทรพงษ์','ค่าวัสดุสิ้นเปลือง-กล่อง','ค่าของใช้-Makro','ค่าแก๊ส','ค่าน้ำแข็ง','ค่าเครื่องดื่มพนักงาน-สยามวอเตอร์เพียว','ค่าสวัสดิการพนักงาน-อื่นๆ','ค่าเบี้ยขยัน','ค่าแบบฟอร์มพนักงาน','ค่าวัสดุสิ้นเปลือง-การขายและบริการ','ค่าออกแบบและผลิตสื่อ','ค่าใช้จ่ายอื่นๆ-ค่าสินค้าตัวอย่าง','ค่าสินค้าตัวอย่าง (เพื่อโอกาสทางธุรกิจ)','ค่าส่งเสริมการขาย - ร้านค้า','ค่าสื่อโฆษณาประชาสัมพันธ์','ค่าโทรศัพท์','ค่าน้ำบาดาล','ค่าบริการอินเตอร์เน็ต','ค่าไฟฟ้า','ค่าใช้จ่ายการขออนุญาติประกอบการร้าน','ค่าบริการดูแลรักษาร้านอาหาร : ล้างแอร์ ทำความสะอาด','ค่าลิขสิทธ์เพลง - การขายและบริการ','ค่าเช่า-เครื่องทำน้ำแข็ง','ค่าเช่า-เครื่องล้างจาน','ค่าเช่า - อุปกรณ์ร้าน','ค่าเช่า - ระบบ POS','ค่าใช้จ่ายอื่นๆ','ค่าใช้จ่ายอื่นๆ-วัสดุสิ้นเปลือง','ค่าใช้จ่ายอื่นๆ-ไหว้พระ','ค่าใช้จ่ายอื่นๆ-ค่าของห้องขนม','ค่าใช้จ่ายอื่นๆ-ค่าสื่อโฆษณา','ค่าจ้างบริหาร - การตลาด (CEO)','ค่าจ้างบริหาร - บัญชี','ค่าซ่อมแซม - อาคาร','ประกันร้าน','ภาษีที่ดิน','ภาษี ภงด. 90','ภาษี ภพ 30.']);
+        const _cpfx = c => c.startsWith('ค่าวัตถุดิบ-')||c.startsWith('ค่าเครื่องดื่มแอลกอฮอล์-')||c.startsWith('ค่าขนส่ง');
+        const _unc = _tx.filter(t=>{const c=t.cat||'';return !_ct.has(c)&&!_cpfx(c);});
+        const _ecogs=_unc.filter(t=>_gb(t.cat)==='cogs').reduce((s,t)=>s+t.amount,0);
+        const _eopex=_unc.filter(t=>_gb(t.cat)==='opex').reduce((s,t)=>s+t.amount,0);
+        const _etax =_unc.filter(t=>_gb(t.cat)==='tax').reduce((s,t)=>s+t.amount,0);
+        const _rev=_di.reduce((s,e)=>s+e.total,0);
+        const _rf=_di.reduce((s,e)=>s+(e.rev_food||0),0),_rna=_di.reduce((s,e)=>s+(e.rev_drink_na||0),0);
+        const _ra=_di.reduce((s,e)=>s+(e.rev_alc||0),0),_re=_di.reduce((s,e)=>s+(e.rev_event||0),0),_ro=_di.reduce((s,e)=>s+(e.rev_other||0),0);
+        const _cf=_sc(c=>c.startsWith('ค่าวัตถุดิบ-')),_cna=_sc(c=>['ค่าเครื่องดื่ม-โค้ก','ค่าเครื่องดื่ม Non Al-ธ.ภัทรพงษ์'].includes(c));
+        const _ca=_sc(c=>c.startsWith('ค่าเครื่องดื่มแอลกอฮอล์-')),_cpk=_sc(c=>['ค่าวัสดุสิ้นเปลือง-กล่อง','ค่าของใช้-Makro'].includes(c));
+        const _clk=_sal.filter(e=>e.dept==='kitchen').reduce((s,e)=>s+(e.p1||0)+(e.p2||0),0);
+        const _cg=_sc(c=>['ค่าแก๊ส','ค่าน้ำแข็ง','ค่าเครื่องดื่มพนักงาน-สยามวอเตอร์เพียว'].includes(c));
+        const _ctot=_cf+_cna+_ca+_cpk+_clk+_cg+_ecogs, _gp=_rev-_ctot;
+        const _osv=_sal.filter(e=>e.dept==='service').reduce((s,e)=>s+(e.p1||0)+(e.p2||0),0);
+        const _omu=_sal.filter(e=>e.dept==='musician').reduce((s,e)=>s+(e.p1||0)+(e.p2||0),0);
+        const _owf=_sc(c=>['ค่าสวัสดิการพนักงาน-อื่นๆ','ค่าเบี้ยขยัน','ค่าแบบฟอร์มพนักงาน'].includes(c));
+        const _omt=_sc(c=>c==='ค่าวัสดุสิ้นเปลือง-การขายและบริการ');
+        const _odf=Math.round(_di.reduce((s,e)=>s+(e.delivery||0),0)*DELIVERY_FEE_RATE);
+        const _ods=_sc(c=>c==='ค่าออกแบบและผลิตสื่อ'),_osp=_sc(c=>['ค่าใช้จ่ายอื่นๆ-ค่าสินค้าตัวอย่าง','ค่าสินค้าตัวอย่าง (เพื่อโอกาสทางธุรกิจ)'].includes(c));
+        const _omk=_sc(c=>['ค่าส่งเสริมการขาย - ร้านค้า','ค่าสื่อโฆษณาประชาสัมพันธ์'].includes(c));
+        const _oph=_sc(c=>c==='ค่าโทรศัพท์'),_owt=_sc(c=>c==='ค่าน้ำบาดาล'),_oin=_sc(c=>c==='ค่าบริการอินเตอร์เน็ต'),_oel=_sc(c=>c==='ค่าไฟฟ้า');
+        const _otr=_sc(c=>c.startsWith('ค่าขนส่ง'));
+        const _osf=_sc(c=>['ค่าใช้จ่ายการขออนุญาติประกอบการร้าน','ค่าบริการดูแลรักษาร้านอาหาร : ล้างแอร์ ทำความสะอาด','ค่าลิขสิทธ์เพลง - การขายและบริการ'].includes(c));
+        const _ori=_sc(c=>c==='ค่าเช่า-เครื่องทำน้ำแข็ง'),_orw=_sc(c=>c==='ค่าเช่า-เครื่องล้างจาน');
+        const _oro=_sc(c=>['ค่าเช่า - อุปกรณ์ร้าน','ค่าเช่า - ระบบ POS'].includes(c));
+        const _oom=_sc(c=>['ค่าใช้จ่ายอื่นๆ','ค่าใช้จ่ายอื่นๆ-วัสดุสิ้นเปลือง','ค่าใช้จ่ายอื่นๆ-ไหว้พระ','ค่าใช้จ่ายอื่นๆ-ค่าของห้องขนม','ค่าใช้จ่ายอื่นๆ-ค่าสื่อโฆษณา'].includes(c));
+        const _oceo=_sc(c=>c==='ค่าจ้างบริหาร - การตลาด (CEO)'),_oacc=_sc(c=>c==='ค่าจ้างบริหาร - บัญชี');
+        const _orp=_sc(c=>c==='ค่าซ่อมแซม - อาคาร');
+        const _ostaf=_osv+_omu+_owf, _omktot=_omt+_odf+_ods+_osp+_omk, _outot=_oph+_owt+_oin+_oel;
+        const _osel=_ostaf+_omktot+_outot+_otr+_osf+_ori+_orw+_oro+_oom+_eopex;
+        const _oadm=_oceo+_oacc, _otot=_osel+_oadm+_orp;
+        const _ebt=_gp-_otot, _tax=_sc(c=>['ประกันร้าน','ภาษีที่ดิน','ภาษี ภงด. 90','ภาษี ภพ 30.'].includes(c))+_etax, _np=_ebt-_tax;
         result[mo] = {
-          revenue: liveRev, cogs_total: 0, gross_profit: liveRev,
-          opex_total: liveExp + liveSalary, ebt: liveRev - liveExp - liveSalary,
-          tax: 0, net_profit: liveRev - liveExp - liveSalary,
-          rev_food: liveInc.reduce((a,e)=>a+(e.rev_food||0),0),
-          rev_drink_na: liveInc.reduce((a,e)=>a+(e.rev_drink_na||0),0),
-          rev_alc: liveInc.reduce((a,e)=>a+(e.rev_alc||0),0),
-          rev_event: liveInc.reduce((a,e)=>a+(e.rev_event||0),0),
-          rev_other: liveInc.reduce((a,e)=>a+(e.rev_other||0),0),
+          revenue:_rev,rev_food:_rf,rev_drink_na:_rna,rev_alc:_ra,rev_event:_re,rev_other:_ro,other_income:0,
+          cogs_food:_cf,cogs_drink_na:_cna,cogs_alc:_ca,cogs_packaging:_cpk,cogs_labor_kitchen:_clk,
+          cogs_rent_ice:0,cogs_rent_washer:0,cogs_gas:_cg,cogs_event:0,cogs_total:_ctot,gross_profit:_gp,
+          opex_service:_osv,opex_musician:_omu,opex_welfare:_owf,opex_staff_total:_ostaf,
+          opex_materials:_omt,opex_delivery_fee:_odf,opex_design:_ods,opex_sample:_osp,opex_marketing_total:_omktot,
+          opex_phone:_oph,opex_water:_owt,opex_internet:_oin,opex_electricity:_oel,opex_utilities_total:_outot,
+          opex_rent_ice:_ori,opex_rent_washer:_orw,opex_selling_total:_osel,
+          opex_ceo:_oceo,opex_accountant:_oacc,opex_admin_total:_oadm,
+          opex_repair:_orp,opex_depreciation:0,opex_total:_otot,ebt:_ebt,tax:_tax,net_profit:_np,
         };
         continue;
       }
