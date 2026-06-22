@@ -7080,16 +7080,14 @@ function computePLFromData(year) {
     for (let mo = 1; mo <= 12; mo++) {
       const s = snap[String(mo)] || {};
       const mStr0 = `${year}-${String(mo).padStart(2,'0')}`;
-      const hasLiveTxs = (data.txs||[]).some(t => t.date.startsWith(mStr0) && t.type==='expense' && !t.auto);
-      const hasLiveInc = (data.daily_inc||[]).some(e => e.date.startsWith(mStr0));
-      // เดือนที่มีข้อมูล live ให้คำนวณจาก live data แทน snapshot
-      if ((hasLiveTxs || hasLiveInc) && !s.revenue) {
-        // คำนวณ live สำหรับเดือนนี้แล้วใส่ result — ส่วนที่เหลือของ loop จะข้ามไป
-        const liveTxs = (data.txs||[]).filter(t => t.date.startsWith(mStr0) && t.type==='expense' && !t.auto);
-        const liveInc = (data.daily_inc||[]).filter(e => e.date.startsWith(mStr0));
-        const liveRev = liveInc.reduce((a,e)=>a+(e.total||0),0);
-        const liveExp = liveTxs.reduce((a,t)=>a+(t.amount||0),0);
-        const liveSalary = ((data.salary_v2||{})[mStr0]||[]).reduce((a,e)=>a+(e.amount||0),0);
+      // คำนวณ live expenses และ income สำหรับเดือนนี้เสมอ — เพื่อเสริมเข้า snapshot
+      const liveTxs = (data.txs||[]).filter(t => t.date.startsWith(mStr0) && t.type==='expense' && !t.auto);
+      const liveInc = (data.daily_inc||[]).filter(e => e.date.startsWith(mStr0));
+      const liveExp = liveTxs.reduce((a,t)=>a+(t.amount||0),0);
+      const liveRev = liveInc.reduce((a,e)=>a+(e.total||0),0);
+      const liveSalary = ((data.salary_v2||{})[mStr0]||[]).reduce((a,e)=>a+(e.amount||0),0);
+      // เดือนที่ไม่มี snapshot revenue เลย → ใช้ live ล้วน
+      if (!s.revenue && (liveRev > 0 || liveExp > 0)) {
         result[mo] = {
           revenue: liveRev, cogs_total: 0, gross_profit: liveRev,
           opex_total: liveExp + liveSalary, ebt: liveRev - liveExp - liveSalary,
@@ -7135,8 +7133,10 @@ function computePLFromData(year) {
         opex_repair: s.opex_repair||0, opex_depreciation: 0,
         opex_rent_ice: s.cogs_rent_ice||0, opex_rent_washer: s.cogs_rent_washer||0,
         opex_selling_total: (s.opex_total||0) - (s.opex_admin_total||0) - (s.opex_repair||0) + (s.cogs_rent_ice||0) + (s.cogs_rent_washer||0),
-        opex_total: (s.opex_total||0) + (s.cogs_rent_ice||0) + (s.cogs_rent_washer||0),
-        ebt: s.ebt||0, tax: s.tax||0, net_profit: s.net_profit||0,
+        opex_total: (s.opex_total||0) + (s.cogs_rent_ice||0) + (s.cogs_rent_washer||0) + liveExp + liveSalary,
+        ebt: (s.ebt||0) - liveExp - liveSalary,
+        tax: s.tax||0,
+        net_profit: (s.net_profit||0) - liveExp - liveSalary,
       };
     }
     return result;
