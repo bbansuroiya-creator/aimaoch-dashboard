@@ -3664,29 +3664,18 @@ function setTxTab(btn) {
 // (run once: ลบ entries ที่ผิด แล้วใส่ค่าถูกจาก pl_snapshot_2026)
 function fixPLImportedTxs() {
   const data = loadData();
-  if (!data.pl_snapshot_2026 || data._pl_txs_fixed_v2) return;
+  if (!data.pl_snapshot_2026 || data._pl_txs_fixed_v3) return;
   const snap = data.pl_snapshot_2026;
 
-  // สร้าง lookup: marketing_total ต่อเดือน (เหล่านี้คือ "รวมการตลาด" ที่ import ผิด)
-  const mktTotal = {};
-  for (let mo = 1; mo <= 12; mo++) {
-    const s = snap[String(mo)] || {};
-    mktTotal[`2026-${String(mo).padStart(2,'0')}`] = s.opex_marketing_total || 0;
-  }
+  // ลบ ALL entries ที่มี note "จาก P&L" ทิ้งทั้งหมด (ล้าง duplicate เก่าด้วย)
+  data.txs = (data.txs||[]).filter(t => !(t.note||'').includes('P&L'));
 
-  // ลบ entries ที่ผิด:
-  // 1) opex-บริหาร "จาก P&L" = "รวม ค่าใช้จ่ายในการขายและบริการ" import ผิดเป็น CEO
-  // 2) opex-ไฟฟ้า "จาก P&L" ที่ amount ตรงกับ opex_marketing_total = "รวมการตลาด" import ผิดเป็นค่าไฟฟ้า
-  data.txs = (data.txs||[]).filter(t => {
-    if (!(t.note||'').includes('P&L')) return true; // เก็บ entries ปกติ
-    const ym = (t.date||'').slice(0,7);
-    if (t.cat === 'opex-บริหาร') return false; // ลบ CEO เก่าทิ้งทั้งหมด
-    if (t.cat === 'opex-ไฟฟ้า' && t.amount === mktTotal[ym]) return false; // ลบ "รวมการตลาด" ที่ label ผิด
-    return true;
-  });
+  // คำนวณเดือนปัจจุบัน — ไม่สร้าง entry สำหรับเดือน live (เดือนนี้+)
+  const _now = new Date();
+  const _curMo = _now.getFullYear() === 2026 ? _now.getMonth() + 1 : 13;
 
-  // เพิ่ม CEO + บัญชี ใหม่จาก snapshot (ค่าจริงรายเดือน)
-  for (let mo = 1; mo <= 12; mo++) {
+  // เพิ่ม CEO + บัญชี เฉพาะเดือน snapshot (ม.ค.–เดือนก่อนปัจจุบัน)
+  for (let mo = 1; mo < _curMo; mo++) {
     const s = snap[String(mo)];
     if (!s) continue;
     const ym = `2026-${String(mo).padStart(2,'0')}`;
@@ -3710,8 +3699,9 @@ function fixPLImportedTxs() {
     }
   }
 
-  data._pl_txs_fixed_v2 = true;
-  delete data._ceo_txs_fixed; // reset flag เก่า
+  data._pl_txs_fixed_v3 = true;
+  delete data._pl_txs_fixed_v2;
+  delete data._ceo_txs_fixed;
   saveData(data);
 }
 fixPLImportedTxs(); // run ครั้งเดียวตอน load
