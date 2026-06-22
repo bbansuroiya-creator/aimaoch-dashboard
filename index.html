@@ -4883,7 +4883,7 @@ function renderPriceRows() {
       <div style="background:${color};padding:9px 14px;display:flex;align-items:center;gap:8px">
         <div style="width:28px;height:28px;background:rgba(255,255,255,.2);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px">🏪</div>
         <div style="font-size:14px;font-weight:700;color:#fff;flex:1">${sup}</div>
-        ${savedDisc?.expense_created ? `<div style="font-size:11px;font-weight:700;color:#fff;background:rgba(22,163,74,.45);padding:3px 10px;border-radius:20px;border:1px solid rgba(255,255,255,.5)">✅ สร้างแล้ว</div>` : ''}
+        ${savedDisc?.expense_created ? `<div style="display:flex;align-items:center;gap:6px"><div style="font-size:11px;font-weight:700;color:#fff;background:rgba(22,163,74,.45);padding:3px 10px;border-radius:20px;border:1px solid rgba(255,255,255,.5)">✅ สร้างแล้ว</div><button onclick="resetExpenseCreated('${safeSupAttr}')" style="font-size:10px;font-weight:600;color:#fff;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);border-radius:20px;padding:2px 8px;cursor:pointer">↩ ยกเลิก</button></div>` : ''}
         <div style="font-size:11px;color:rgba(255,255,255,.75)">${supItems.length} รายการ</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;padding:7px 14px;background:#f0f9ff;border-bottom:1px solid #bae6fd">
@@ -4971,6 +4971,16 @@ function recalcQtyForItem(id, newQty) {
   const priceInp = document.querySelector(`.price-unit-input[data-item-id="${id}"]`);
   if (priceInp) priceInp.dataset.qty = parseFloat(newQty) || 0;
   recalcPriceAll();
+}
+
+function resetExpenseCreated(sup) {
+  const data = loadData();
+  const idx = (data.po_discounts||[]).findIndex(d => d.date === _priceDate && d.supplier === sup);
+  if (idx < 0) return;
+  data.po_discounts[idx].expense_created = false;
+  saveData(data);
+  toast(`↩ ยกเลิกสถานะ "${sup}" แล้ว — กด "+ สร้างรายจ่าย" เพื่อสร้างใหม่`, 'success');
+  renderPriceRows();
 }
 
 function saveAndCreateForSupplier(sup) {
