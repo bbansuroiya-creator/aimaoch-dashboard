@@ -3927,14 +3927,18 @@ function renderOverview() {
   const totalInc  = totalIncNew + totalIncLeg;
 
   // ── ถ้ามี P&L snapshot ให้ใช้ค่า expense & profit จาก snapshot ──
+  // แต่ถ้าเป็น live month (เดือนปัจจุบัน+) ให้ใช้ live data เสมอ
   const snap = data.pl_snapshot_2026?.[String(mo)];
+  const _nowOv = new Date();
+  const _isLiveMonthOv = parseInt(year) > _nowOv.getFullYear() ||
+    (parseInt(year) === _nowOv.getFullYear() && mo >= _nowOv.getMonth() + 1);
   let totalExp, gp, useSnap = false, autoDeliveryFee = 0;
-  if (snap && snap.revenue > 0) {
+  if (snap && snap.revenue > 0 && !_isLiveMonthOv) {
     totalExp = (snap.cogs_total||0) + (snap.opex_total||0) + (snap.tax||0);
     gp = snap.net_profit||0;
     useSnap = true;
   } else {
-    const txExp = txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+    const txExp = txs.filter(t=>t.type==='expense' && !(t.note||'').includes('P&L')).reduce((s,t)=>s+t.amount,0);
     const moDeliveryInc = dailyInc.reduce((s,e)=>s+(e.delivery||0),0);
     autoDeliveryFee = Math.round(moDeliveryInc * DELIVERY_FEE_RATE);
     totalExp = txExp + autoDeliveryFee;
