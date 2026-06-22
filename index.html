@@ -5045,9 +5045,13 @@ function savePricing(createExpense, targetSup) {
       const shipEl = document.querySelector(`.price-ship-input[data-sup="${sup.replace(/"/g,'&quot;')}"]`);
       const ship   = parseFloat(shipEl?.value) || 0;
       const net    = Math.max(0, (supSubs[sup]||0) - disc + ship);
-      // Check already created
+      // Check already created — only block if tx actually exists in data.txs
       const discIdx = data.po_discounts.findIndex(d => d.date === _priceDate && d.supplier === sup);
-      if (discIdx >= 0 && data.po_discounts[discIdx].expense_created) { alreadyDone.push(sup); return; }
+      if (discIdx >= 0 && data.po_discounts[discIdx].expense_created) {
+        const txExists = (data.txs||[]).some(t => t.date === _priceDate && (t.name === sup || t.name === `ซื้อวัตถุดิบจาก ${sup}`));
+        if (txExists) { alreadyDone.push(sup); return; }
+        // Flag is set but tx missing — allow re-creation
+      }
       // Block if net = 0
       if (net <= 0) { blockedZero.push(sup); return; }
       const notes = [disc > 0 ? `ส่วนลด ${baht(disc)}` : '', ship > 0 ? `ค่าส่ง ${baht(ship)}` : ''].filter(Boolean).join(', ');
