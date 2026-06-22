@@ -7503,6 +7503,33 @@ function migrateCategoryNames() {
   if (changed) saveData(data);
 }
 
+function migrateExpensesToTxs() {
+  const data = loadData();
+  if (!data.expenses || !data.expenses.length) return;
+  if (!data.txs) data.txs = [];
+  let count = 0;
+  data.expenses.forEach(e => {
+    // Avoid duplicate if already migrated
+    if (data.txs.some(t => t.id === e.id)) return;
+    data.txs.push({
+      id: e.id || (Date.now().toString() + Math.random().toString(36).slice(2)),
+      date: e.date,
+      type: 'expense',
+      status: 'paid',
+      name: e.desc || e.name || 'จัดซื้อ',
+      cat: e.cat || '',
+      amount: e.amount || 0,
+      note: e.note || ''
+    });
+    count++;
+  });
+  if (count > 0) {
+    delete data.expenses;
+    saveData(data);
+    toast(`✅ ย้ายรายจ่าย PO ${count} รายการเข้าระบบแล้ว`, 'success');
+  }
+}
+
 // ════════════════════════════════════════════
 // SUPPLIER TAG PICKER (Item Master modal)
 // ════════════════════════════════════════════
@@ -9343,6 +9370,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   _dbReady = true;
 
   migrateCategoryNames();
+  migrateExpensesToTxs();
   const now = new Date();
   const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const sel = document.getElementById('globalMonth');
