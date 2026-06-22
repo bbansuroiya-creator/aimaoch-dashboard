@@ -98,6 +98,14 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
+/* ═══ TABLET PERFORMANCE ═══ */
+button, input, select, textarea, [onclick], .sb-link, .tab-btn, .btn-sm, label {
+  touch-action: manipulation; /* ลด 300ms tap delay บน tablet */
+}
+.main-content, #sidebar nav, .modal-body, .page, .table-wrap {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
 
 /* ═══ LAYOUT ═══ */
 #shell { display: flex; height: 100vh; overflow: hidden; }
@@ -2527,8 +2535,10 @@ async function _fsSave(d) {
 }
 
 function loadData() { return _dbCache; }
+let _plCache = {}; // cache computePLFromData — invalidated on saveData
 function saveData(d) {
   _dbCache = d;
+  _plCache = {}; // invalidate PL cache on every save
   if (window.location.protocol === 'file:') {
     localStorage.setItem(SK, JSON.stringify(d));
   } else {
@@ -7088,6 +7098,7 @@ function getPLData(year) {
 // คำนวณ P&L live จากข้อมูลในเว็บ
 // ════════════════════════════════════════════
 function computePLFromData(year) {
+  if (_plCache[year]) return _plCache[year]; // return cached result
   const data = loadData();
   // ── ถ้ามี snapshot จาก Excel ให้ใช้ตรงๆ ──
   if (year === '2026' && data.pl_snapshot_2026) {
@@ -7196,6 +7207,7 @@ function computePLFromData(year) {
         ebt: s.ebt||0, tax: s.tax||0, net_profit: s.net_profit||0,
       };
     }
+    _plCache[year] = result;
     return result;
   }
 
@@ -7313,6 +7325,7 @@ function computePLFromData(year) {
       opex_repair, opex_depreciation, opex_total, ebt, tax, net_profit,
     };
   }
+  _plCache[year] = result;
   return result;
 }
 
@@ -9429,6 +9442,11 @@ function guardSession() {
 // INIT
 // ════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', async () => {
+  // Disable Chart.js animations on touch devices (tablet/mobile) for better performance
+  if (window.matchMedia('(pointer: coarse)').matches) {
+    Chart.defaults.animation = false;
+    Chart.defaults.transitions = {};
+  }
   const _IS_LOCAL = window.location.protocol === 'file:';
 
   document.body.style.opacity = '0.4';
