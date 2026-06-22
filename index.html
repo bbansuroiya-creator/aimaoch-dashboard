@@ -2966,6 +2966,7 @@ function renderDepositList() {
       if (d.used_note) sub.push(d.used_note);
     }
     if (d.note)       sub.push(d.note);
+    const deleteBtn = `<div style="text-align:right;margin-top:8px;padding-top:8px;border-top:1px solid var(--ink-100)"><button onclick="deleteDeposit('${d.id}')" style="background:transparent;color:var(--text-faint);border:none;padding:4px 8px;font-size:12px;cursor:pointer">🗑 ลบรายการ</button></div>`;
     const actions = d.status==='pending' ? `
       <div style="display:flex;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--ink-100)">
         <button onclick="toggleInlineRecognize('${d.id}')" style="flex:1;background:var(--success-700);color:#fff;border:none;border-radius:var(--radius-sm);padding:6px 0;font-size:12.5px;font-weight:600;cursor:pointer">ลูกค้ามาแล้ว</button>
@@ -3021,7 +3022,7 @@ function renderDepositList() {
           <button onclick="confirmRefund('${d.id}',${d.amount})" style="background:var(--warning-700);color:#fff;border:none;border-radius:var(--radius-sm);padding:6px 16px;font-size:12.5px;font-weight:600;cursor:pointer">↩️ ยืนยันคืน</button>
           <button onclick="document.getElementById('dep-inline-refund-${d.id}').style.display='none'" style="background:transparent;color:var(--text-muted);border:1px solid var(--ink-200);border-radius:var(--radius-sm);padding:6px 12px;font-size:12.5px;cursor:pointer">ยกเลิก</button>
         </div>
-      </div>` : '';
+      </div>` : deleteBtn;
     return `<div style="border:1px solid var(--ink-200);border-radius:var(--radius-md);padding:12px 14px;margin-bottom:10px">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
         <div style="flex:1;min-width:0">
