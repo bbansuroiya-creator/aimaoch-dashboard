@@ -5017,7 +5017,7 @@ function savePricing(createExpense, targetSup) {
 
   // Optionally create expense entries
   if (createExpense) {
-    if (!data.expenses) data.expenses = [];
+    if (!data.txs) data.txs = [];
     // Build per-supplier subtotals from DOM
     const supSubs = {};
     document.querySelectorAll('.price-unit-input').forEach(inp => {
@@ -5043,10 +5043,10 @@ function savePricing(createExpense, targetSup) {
       const notes = [disc > 0 ? `ส่วนลด ${baht(disc)}` : '', ship > 0 ? `ค่าส่ง ${baht(ship)}` : ''].filter(Boolean).join(', ');
       const catSelEl = document.querySelector(`.price-exp-cat-sel[data-sup="${sup.replace(/"/g,'&quot;')}"]`);
       const chosenCat = catSelEl?.value || _supToExpCat(sup);
-      data.expenses.push({
+      data.txs.push({
         id: Date.now().toString() + Math.random().toString(36).slice(2),
-        date: _priceDate, cat: chosenCat,
-        desc: `ซื้อวัตถุดิบจาก ${sup}`,
+        date: _priceDate, type: 'expense', status: 'paid',
+        name: sup, cat: chosenCat,
         amount: net, note: notes
       });
       // Mark expense_created in po_discounts
