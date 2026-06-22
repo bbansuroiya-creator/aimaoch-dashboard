@@ -7081,7 +7081,7 @@ function computePLFromData(year) {
       const s = snap[String(mo)] || {};
       const mStr0 = `${year}-${String(mo).padStart(2,'0')}`;
       // คำนวณ live expenses และ income สำหรับเดือนนี้เสมอ — เพื่อเสริมเข้า snapshot
-      const liveTxs = (data.txs||[]).filter(t => t.date.startsWith(mStr0) && t.type==='expense' && !t.auto);
+      const liveTxs = (data.txs||[]).filter(t => t.date.startsWith(mStr0) && t.type==='expense' && !t.auto && !(t.note||'').includes('P&L'));
       const liveInc = (data.daily_inc||[]).filter(e => e.date.startsWith(mStr0));
       const liveExp = liveTxs.reduce((a,t)=>a+(t.amount||0),0);
       const liveRev = liveInc.reduce((a,e)=>a+(e.total||0),0);
