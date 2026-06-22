@@ -3029,7 +3029,9 @@ function renderDepositList() {
           <div style="font-size:12px;color:var(--text-muted);line-height:1.6">${sub.join(' · ')}</div>
         </div>
         <div style="text-align:right;flex:none">
-          <div style="font-size:17px;font-weight:700;font-family:var(--font-mono);color:var(--text-heading)">฿${d.amount.toLocaleString('th-TH')}</div>
+          ${(d.status==='used' && (d.outstanding||0) > 0)
+            ? `<div style="font-size:17px;font-weight:700;font-family:var(--font-mono);color:var(--danger-700)">-฿${(d.outstanding).toLocaleString('th-TH')}</div>`
+            : `<div style="font-size:17px;font-weight:700;font-family:var(--font-mono);color:var(--text-heading)">฿${d.amount.toLocaleString('th-TH')}</div>`}
           <div style="margin-top:4px">${badges[d.status]||''}</div>
         </div>
       </div>
