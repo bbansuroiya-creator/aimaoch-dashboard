@@ -1794,6 +1794,15 @@ input[type="date"].form-input { font-family: var(--font-sans); }
           <div style="font-size:13px;color:var(--text-muted);margin-top:2px">บันทึก 2 รอบ/เดือน แยกแผนก</div>
         </div>
         <div style="display:flex;gap:10px;align-items:center">
+          <button class="btn btn-outline" onclick="downloadSalaryTemplate()" title="ดาวน์โหลด Template เงินเดือน">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Template
+          </button>
+          <label class="btn btn-outline" style="cursor:pointer" title="Import เงินเดือนจาก Excel">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Import
+            <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importSalaryExcel(this.files[0]);this.value=''">
+          </label>
           <button class="btn btn-outline" onclick="exportSalaryExcel()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
             Export Excel
@@ -3333,6 +3342,86 @@ function exportSalaryExcel() {
   XLSX.utils.book_append_sheet(wb, ws, 'เงินเดือน');
   XLSX.writeFile(wb, `เงินเดือน_${label}.xlsx`);
   toast(`✅ Export สำเร็จ ${emps.length} คน`, 'success');
+}
+
+function downloadSalaryTemplate() {
+  if (!window.XLSX) { toast('SheetJS ยังโหลดไม่เสร็จ','error'); return; }
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: ข้อมูลเงินเดือน
+  const headers = ['เดือน(MM/YYYY)','ชื่อพนักงาน','แผนก','งวด1 (บาท)','งวด2 (บาท)','หมายเหตุ'];
+  const examples = [
+    ['01/2026','สมชาย ใจดี','ครัว',8000,7000,''],
+    ['01/2026','สมหญิง รักงาน','บริการ',7000,6000,''],
+    ['01/2026','นักดนตรี A','นักดนตรี',5000,5000,''],
+    ['02/2026','สมชาย ใจดี','ครัว',8000,7000,''],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet([headers,...examples]);
+  ws['!cols'] = [14,20,12,14,14,20].map(w=>({wch:w}));
+
+  // Sheet 2: แผนกอ้างอิง
+  const ref = [
+    ['แผนก (กรอกในคอลัมน์แผนก)'],
+    ['ครัว'],['บริการ'],['นักดนตรี'],['บริหาร'],
+  ];
+  const ws2 = XLSX.utils.aoa_to_sheet(ref);
+  ws2['!cols'] = [{wch:28}];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'เงินเดือน');
+  XLSX.utils.book_append_sheet(wb, ws2, 'แผนกอ้างอิง');
+  XLSX.writeFile(wb, 'template_salary.xlsx');
+  toast('✅ ดาวน์โหลด Template เงินเดือนแล้ว','success');
+}
+
+function importSalaryExcel(file) {
+  if (!file) return;
+  if (!window.XLSX) { toast('SheetJS ยังโหลดไม่เสร็จ','error'); return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+      const sh = wb.SheetNames[0];
+      if (!sh) { toast('ไม่พบ sheet ข้อมูล','error'); return; }
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[sh], {header:1, defval:''});
+      const data = loadData();
+      if (!data.salary_v2) data.salary_v2 = {};
+      const DEPT_MAP = {'ครัว':'kitchen','บริการ':'service','นักดนตรี':'musician','บริหาร':'other'};
+      let added = 0, skipped = 0;
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        const moRaw = String(r[0]||'').trim();
+        const name  = String(r[1]||'').trim();
+        const dept  = DEPT_MAP[String(r[2]||'').trim()] || 'other';
+        const p1    = parseFloat(String(r[3]||0).replace(/,/g,''))||0;
+        const p2    = parseFloat(String(r[4]||0).replace(/,/g,''))||0;
+        const note  = String(r[5]||'').trim();
+        if (!moRaw || !name) continue;
+        // Parse MM/YYYY → YYYY-MM
+        const mp = moRaw.match(/^(\d{1,2})\/(\d{4})$/);
+        if (!mp) { skipped++; continue; }
+        const ym = `${mp[2]}-${mp[1].padStart(2,'0')}`;
+        if (!data.salary_v2[ym]) data.salary_v2[ym] = [];
+        // Deduplicate by ym+name
+        const exists = data.salary_v2[ym].some(e=>e.name===name);
+        if (exists) { skipped++; continue; }
+        data.salary_v2[ym].push({
+          id: `imp_sal_${Date.now()}_${i}`,
+          name, dept, p1, p2, note: note||undefined,
+        });
+        added++;
+      }
+      if (added > 0) {
+        saveData(data);
+        renderSalary();
+        toast(`✅ Import เงินเดือนสำเร็จ ${added} รายการ${skipped?` (ข้าม ${skipped})`:''}`,'success');
+      } else {
+        toast(`ไม่มีข้อมูลใหม่ (ข้าม ${skipped} รายการซ้ำ)`,'');
+      }
+    } catch(err) {
+      toast('❌ อ่านไฟล์ไม่ได้: '+err.message,'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 function renderSalary() {
