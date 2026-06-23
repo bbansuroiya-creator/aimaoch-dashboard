@@ -1811,6 +1811,27 @@ input[type="date"].form-input { font-family: var(--font-sans); }
         </div>
       </div>
 
+      <!-- Staff Master List -->
+      <details style="margin-bottom:16px">
+        <summary style="cursor:pointer;font-weight:600;font-size:14px;color:var(--text-heading);padding:14px 16px;background:var(--surface-card);border:1px solid var(--border-light);border-radius:10px;list-style:none;display:flex;align-items:center;justify-content:space-between">
+          <span>👥 รายชื่อพนักงาน (Staff Master)</span>
+          <span style="font-size:11px;font-weight:400;color:var(--text-muted)">คลิกเพื่อจัดการ ▾</span>
+        </summary>
+        <div style="border:1px solid var(--border-light);border-top:none;border-radius:0 0 10px 10px;padding:16px;background:var(--surface-card)">
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <input id="staff-new-name" class="form-input" placeholder="ชื่อพนักงาน *" style="flex:1">
+            <select id="staff-new-dept" class="form-input" style="width:140px">
+              <option value="kitchen">ครัว</option>
+              <option value="service">บริการ</option>
+              <option value="musician">นักดนตรี</option>
+              <option value="other">บริหาร</option>
+            </select>
+            <button class="btn btn-primary" onclick="addStaff()">+ เพิ่ม</button>
+          </div>
+          <div id="staff-list-body"></div>
+        </div>
+      </details>
+
       <!-- Salary Summary -->
       <div class="stat-grid" id="salary-summary" style="margin-bottom:16px"></div>
 
@@ -3173,8 +3194,52 @@ let editSalId = null;
 
 function _salAllNames(data) {
   const names = new Set();
+  // Pull from staff master list first
+  (data.staff||[]).forEach(s => { if (s.name) names.add(s.name); });
+  // Then from historical salary_v2
   Object.values(data.salary_v2||{}).forEach(arr => arr.forEach(e => { if (e.name) names.add(e.name); }));
   return [...names].sort((a,b) => a.localeCompare(b,'th'));
+}
+
+function renderStaffList() {
+  const data = loadData();
+  const staff = data.staff || [];
+  const el = document.getElementById('staff-list-body');
+  if (!el) return;
+  if (!staff.length) {
+    el.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:13px">ยังไม่มีรายชื่อพนักงาน กดเพิ่มด้านบน</div>`;
+    return;
+  }
+  el.innerHTML = staff.map(s => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border-light)">
+      <div>
+        <span style="font-weight:500">${s.name}</span>
+        <span style="font-size:12px;color:var(--text-muted);margin-left:8px">${DEPT_LABELS[s.dept]||s.dept}</span>
+      </div>
+      <button onclick="deleteStaff('${s.id}')" style="background:none;border:none;cursor:pointer;color:var(--danger-600);font-size:18px;line-height:1;padding:0 4px">×</button>
+    </div>`).join('');
+}
+
+function addStaff() {
+  const nameEl = document.getElementById('staff-new-name');
+  const deptEl = document.getElementById('staff-new-dept');
+  const name = nameEl.value.trim();
+  if (!name) { toast('กรุณากรอกชื่อพนักงาน','error'); return; }
+  const data = loadData();
+  if (!data.staff) data.staff = [];
+  if (data.staff.some(s => s.name === name)) { toast('มีชื่อนี้อยู่แล้ว',''); return; }
+  data.staff.push({ id: Date.now().toString(), name, dept: deptEl.value });
+  saveData(data);
+  nameEl.value = '';
+  renderStaffList();
+  toast('✅ เพิ่มพนักงานแล้ว','success');
+}
+
+function deleteStaff(id) {
+  const data = loadData();
+  data.staff = (data.staff||[]).filter(s => s.id !== id);
+  saveData(data);
+  renderStaffList();
 }
 
 function salNameSelectChange() {
@@ -3425,6 +3490,7 @@ function importSalaryExcel(file) {
 }
 
 function renderSalary() {
+  renderStaffList();
   const ym = getMonth();
   const data = loadData();
   const emps = data.salary_v2?.[ym] || [];
