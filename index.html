@@ -7815,7 +7815,7 @@ function migrateExpensesToTxs() {
   const data = loadData();
   // Fix status 'paid' → 'po' for existing entries from PO
   let fixedStatus = 0;
-  (data.txs||[]).forEach(t => { if (t.status === 'paid' || t.status === 'done' && t.name?.startsWith('ซื้อวัตถุดิบจาก')) { t.status = 'po'; fixedStatus++; } });
+  (data.txs||[]).forEach(t => { if (t.status === 'done' && t.name?.startsWith('ซื้อวัตถุดิบจาก')) { t.status = 'po'; fixedStatus++; } });
   if (fixedStatus > 0) saveData(data);
   if (!data.expenses || !data.expenses.length) return;
   if (!data.txs) data.txs = [];
