@@ -2075,6 +2075,10 @@ input[type="date"].form-input { font-family: var(--font-sans); }
             <label class="form-label" style="color:var(--text-muted)">💰 ยอดใช้ (จากค้างชำระ)</label>
             <input type="number" class="form-input" id="inc-used" placeholder="0" min="0" oninput="calcIncTotal()">
           </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">🎉 Event</label>
+            <input type="number" class="form-input" id="inc-event-pay" placeholder="0" min="0" oninput="calcIncTotal()">
+          </div>
         </div>
       </div>
       <!-- Revenue by product group -->
@@ -2748,9 +2752,9 @@ function toast(msg, tone='') {
 // ════════════════════════════════════════════
 // INCOME MODAL (DAILY — BY CHANNEL)
 // ════════════════════════════════════════════
-const INC_CHANNELS = ['cash','transfer','delivery','visa','mc','jcb','credit','used'];
-const INC_IDS      = ['inc-cash','inc-transfer','inc-delivery','inc-visa','inc-mc','inc-jcb','inc-credit','inc-used'];
-const INC_CATS     = ['เงินสด','โอนเงิน','Delivery','Visa','Master Card','JCB','ค้างชำระ','ยอดใช้'];
+const INC_CHANNELS = ['cash','transfer','delivery','visa','mc','jcb','credit','used','event_pay'];
+const INC_IDS      = ['inc-cash','inc-transfer','inc-delivery','inc-visa','inc-mc','inc-jcb','inc-credit','inc-used','inc-event-pay'];
+const INC_CATS     = ['เงินสด','โอนเงิน','Delivery','Visa','Master Card','JCB','ค้างชำระ','ยอดใช้','Event'];
 
 let editIncId = null;
 
