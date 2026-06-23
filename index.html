@@ -7670,19 +7670,35 @@ function computePLFromData(year) {
 
     // กำไร/ขาดทุน
     const ebt = gross_profit - opex_total;
-    const tax = sumCat(c => ['ประกันร้าน','ภาษีที่ดิน','ภาษี ภงด. 90','ภาษี ภพ 30.'].includes(c)) + extra_tax;
+
+    // Tax — แยกรายประเภท
+    const tax_90        = sumCat(c => c === 'ภาษี ภงด. 90');
+    const tax_vat       = sumCat(c => c === 'ภาษี ภพ 30.');
+    const tax_land      = sumCat(c => c === 'ภาษีที่ดิน');
+    const tax_sign      = sumCat(c => c === 'ภาษีป้าย');
+    const tax_insurance = sumCat(c => c === 'ประกันร้าน');
+    const tax = tax_90 + tax_vat + tax_land + tax_sign + tax_insurance + extra_tax;
     const net_profit = ebt - tax;
+
+    // Grouped keys for PDF-style P&L display
+    const cogs_drink      = cogs_drink_na + cogs_alc;
+    const cogs_operations = cogs_gas + cogs_labor_kitchen + extra_cogs;
+    const opex_rent_total = opex_rent_ice + opex_rent_washer + opex_rent_other;
+    const opex_other_total= opex_marketing_total + opex_phone + opex_internet
+                          + opex_transport + opex_svc_fees + opex_other_misc + opex_repair + extra_opex;
 
     result[mo] = {
       revenue, rev_food, rev_drink_na, rev_alc, rev_event, rev_other,
-      other_income: 0, cogs_food, cogs_drink_na, cogs_alc, cogs_packaging,
-      cogs_labor_kitchen, cogs_rent_ice, cogs_rent_washer, cogs_gas, cogs_event,
+      other_income: 0, cogs_food, cogs_drink_na, cogs_alc, cogs_drink, cogs_packaging,
+      cogs_labor_kitchen, cogs_rent_ice, cogs_rent_washer, cogs_gas, cogs_event, cogs_operations,
       cogs_total, gross_profit,
       opex_service, opex_musician, opex_welfare, opex_staff_total,
       opex_materials, opex_delivery_fee, opex_design, opex_sample, opex_marketing_total,
       opex_phone, opex_water, opex_internet, opex_electricity, opex_utilities_total,
-      opex_rent_ice, opex_rent_washer, opex_selling_total, opex_ceo, opex_accountant, opex_admin_total,
-      opex_repair, opex_depreciation, opex_total, ebt, tax, net_profit,
+      opex_rent_ice, opex_rent_washer, opex_rent_total, opex_selling_total,
+      opex_ceo, opex_accountant, opex_admin_total,
+      opex_repair, opex_depreciation, opex_other_total, opex_total,
+      ebt, tax_90, tax_vat, tax_land, tax_sign, tax_insurance, tax, net_profit,
     };
   }
   _plCache[year] = result;
@@ -7707,11 +7723,13 @@ function renderPL() {
   const kEBT  = selMo ? g('ebt',selMo)          : sum('ebt');
   const kNet  = selMo ? g('net_profit',selMo)   : sum('net_profit');
 
-  // ── Summary cards ──
+  // ── Summary cards (5 cards — PDF style) ──
+  const kCOGS = selMo ? g('cogs_total',selMo) : sum('cogs_total');
   document.getElementById('pl-stats').innerHTML = [
-    {label:'รายรับ'+(moLabel?` (${moLabel})`:'รวม (YTD)'), val:kRev, color:'var(--brand)'},
+    {label:'รายรับ'+(moLabel?` (${moLabel})`:'รวม (YTD)'), val:kRev,  color:'var(--brand)'},
+    {label:'ค่าใช้จ่ายรวม (COGS)',                         val:kCOGS, color:'var(--danger-700)'},
     {label:'กำไรขั้นต้น',          val:kGP,  color:'var(--success-700)', note:'Gross Margin '+pct(kGP,kRev)},
-    {label:'กำไรก่อนหักภาษี',      val:kEBT, color:kEBT>=0?'#16a34a':'var(--danger-700)', note:'EBT Margin '+pct(kEBT,kRev)},
+    {label:'EBIT',                 val:kEBT, color:kEBT>=0?'#16a34a':'var(--danger-700)'},
     {label:'กำไรสุทธิ (Net Profit)',val:kNet, color:kNet>=0?'var(--success-700)':'var(--danger-700)', note:'Net Margin '+pct(kNet,kRev), hl:true},
   ].map(s=>`<div class="stat-card"${s.hl?' style="border:2px solid var(--brand);background:#f0fdf4"':''}>
     <div class="sc-label">${s.label}</div>
@@ -7798,56 +7816,37 @@ function renderPL() {
     <tbody>
       ${grp('รายรับ (Revenue)')}
       ${row('รายรับรวม','revenue','','font-weight:600;color:var(--success-700)')}
-      ${subRow('รายได้อื่น - Event','other_income')}
-      ${sum('rev_food')+sum('rev_drink_na')+sum('rev_alc')+sum('rev_event')+sum('rev_other')>0?`
-      ${subRow('· อาหาร','rev_food')}
-      ${subRow('· เครื่องดื่ม (Non-Alc)','rev_drink_na')}
-      ${subRow('· แอลกอฮอล์','rev_alc')}
-      ${subRow('· Event','rev_event')}
-      ${subRow('· อื่นๆ','rev_other')}
-      `:''}
       ${divRow()}
       ${grp('ต้นทุนขาย (COGS)')}
-      ${subRow('ต้นทุนวัตถุดิบ-อาหาร','cogs_food')}
-      ${subRow('ต้นทุนวัตถุดิบ-เครื่องดื่ม (Non-Alc)','cogs_drink_na')}
-      ${subRow('ต้นทุนวัตถุดิบ-แอลกอฮอล์','cogs_alc')}
-      ${subRow('ต้นทุนบรรจุภัณฑ์','cogs_packaging')}
-      ${subRow('ต้นทุนแรงงาน-พ่อครัว/แม่ครัว','cogs_labor_kitchen',true)}
-      ${subRow('ค่าก๊าซหุงต้ม','cogs_gas')}
-      ${subRow('ต้นทุนงาน Event','cogs_event')}
-      ${totRow('รวม ต้นทุนขาย','cogs_total')}
+      ${subRow('วัตถุดิบอาหาร+ขนม','cogs_food')}
+      ${subRow('เครื่องดื่ม','cogs_drink')}
+      ${subRow('บรรจุภัณฑ์','cogs_packaging')}
+      ${subRow('ค่าดำเนินการ','cogs_operations')}
+      ${totRow('รวม COGS','cogs_total')}
       ${gpRow2('กำไรขั้นต้น (Gross Profit)','gross_profit')}
-      ${pctRowFn('% Gross Margin','gross_profit','revenue')}
+      ${pctRowFn('Gross Margin %','gross_profit','revenue')}
       ${divRow()}
       ${grp('ค่าใช้จ่ายดำเนินงาน (Operating Expenses)')}
-      ${subRow('เงินเดือนพนักงานบริการ','opex_service',true)}
-      ${subRow('ค่าจ้างนักดนตรี','opex_musician',true)}
-      ${subRow('ค่าสวัสดิการพนักงาน','opex_welfare')}
-      ${row('รวม เงินเดือนและค่าจ้าง','opex_staff_total','pl-total')}
-      ${subRow('ค่าวัสดุสิ้นเปลือง','opex_materials')}
-      ${subRow('ค่าแพลตฟอร์ม Food Delivery','opex_delivery_fee')}
-      ${subRow('ค่าออกแบบและผลิตสื่อ','opex_design')}
-      ${subRow('ค่าสินค้าตัวอย่าง','opex_sample')}
-      ${row('รวม การตลาด','opex_marketing_total','pl-total')}
-      ${subRow('ค่าโทรศัพท์','opex_phone')}
-      ${subRow('ค่าน้ำบาดาล','opex_water')}
-      ${subRow('ค่าอินเตอร์เน็ต','opex_internet')}
+      ${subRow('เงินเดือนพนักงาน','opex_staff_total')}
+      ${subRow('ค่าจ้างบริหาร','opex_admin_total')}
+      ${subRow('ค่าเช่า','opex_rent_total')}
       ${subRow('ค่าไฟฟ้า','opex_electricity')}
-      ${row('รวม สาธารณูปโภค','opex_utilities_total','pl-total')}
-      ${subRow('ค่าเช่าเครื่องทำน้ำแข็ง','opex_rent_ice')}
-      ${subRow('ค่าเช่าเครื่องล้างจาน','opex_rent_washer')}
-      ${totRow('รวม ค่าใช้จ่ายในการขายและบริการ','opex_selling_total')}
-      ${subRow('ค่าจ้างบริหาร-CEO','opex_ceo',true)}
-      ${subRow('ค่าจ้างบริหาร-บัญชี','opex_accountant')}
-      ${row('รวม ค่าใช้จ่ายบริหาร','opex_admin_total','pl-total')}
-      ${subRow('ค่าซ่อมแซม','opex_repair')}
-      ${totRow('รวม ค่าใช้จ่ายดำเนินงาน','opex_total')}
+      ${subRow('ค่าน้ำประปา','opex_water')}
+      ${subRow('ค่าใช้จ่ายอื่นๆ','opex_other_total')}
+      ${totRow('รวม Opex','opex_total')}
       ${divRow()}
-      ${ebtRow2('กำไรก่อนหักภาษี','ebt')}
-      ${subRow('ภาษีเงินได้','tax')}
+      ${ebtRow2('EBIT (กำไรก่อนดอกเบี้ยและภาษี)','ebt')}
+      ${divRow()}
+      ${grp('ภาษี')}
+      ${subRow('ภาษี ภงด.90','tax_90')}
+      ${subRow('ภาษี ภพ 30','tax_vat')}
+      ${subRow('ภาษีป้าย','tax_sign')}
+      ${subRow('ภาษีที่ดิน','tax_land')}
+      ${subRow('ประกันร้าน','tax_insurance')}
+      ${totRow('รวมภาษี','tax')}
       ${divRow()}
       ${netRow2('กำไรสุทธิ (Net Profit)','net_profit')}
-      ${pctRowFn('% Net Profit Margin','net_profit','revenue','pl-pct pl-net-pct')}
+      ${pctRowFn('Net Margin %','net_profit','revenue','pl-pct pl-net-pct')}
     </tbody>
   </table>`;
 }
