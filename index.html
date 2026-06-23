@@ -3968,8 +3968,8 @@ function renderOverview() {
   const todayEntry = dailyInc.find(e=>e.date===today);
   const todayIncLeg = txs.filter(t=>t.type==='income'&&t.date===today).reduce((s,t)=>s+t.amount,0);
   const todayInc  = (todayEntry?.total||0) + todayIncLeg;
-  // Card 1: monthly sales — ถ้ามี snapshot ใช้ snap.revenue เป็นยอดเดือน
-  const displayInc = (useSnap && snap.revenue > 0) ? snap.revenue : totalInc;
+  // Card 1: monthly sales — live months ใช้ totalInc เสมอ (daily_inc จริง), snapshot months ใช้ snap.revenue
+  const displayInc = (_isLiveMonthOv || !useSnap || !snap || snap.revenue <= 0) ? totalInc : snap.revenue;
   const moLabel = document.getElementById('ov-main-label');
   if (moLabel) moLabel.textContent = 'ยอดขายเดือนนี้';
   document.getElementById('ov-today').textContent = baht(displayInc);
