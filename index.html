@@ -3946,8 +3946,9 @@ function importTxExcel(file) {
           if (!dateRaw && !amount) continue;
           const date = _parseDateToISO(dateRaw);
           if (!date) { errors.push(`แถว ${i+1}: วันที่ไม่ถูกต้อง "${dateRaw}"`); continue; }
-          const type = typeRaw==='รายรับ' ? 'income' : typeRaw==='รายจ่าย' ? 'expense' : null;
-          if (!type) { errors.push(`แถว ${i+1}: ประเภท "${typeRaw}" ไม่ถูกต้อง (ใช้ รายรับ/รายจ่าย)`); continue; }
+          const type = typeRaw==='รายจ่าย' ? 'expense' : typeRaw==='รายรับ' ? 'income' : null;
+          if (!type) { errors.push(`แถว ${i+1}: ประเภท "${typeRaw}" ไม่ถูกต้อง (ใช้ รายจ่าย เท่านั้น)`); continue; }
+          if (type === 'income') continue; // รายรับให้ใช้ Sheet รายรับรายวัน เท่านั้น
           if (isNaN(amount) || amount <= 0) continue;
           const key = `${date}|${note}|${amount}`;
           if (existingKeys.has(key)) continue;
