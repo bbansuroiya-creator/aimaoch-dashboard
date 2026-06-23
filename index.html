@@ -7564,6 +7564,7 @@ function computePLFromData(year) {
         opex_rent_ice: s.cogs_rent_ice||0, opex_rent_washer: s.cogs_rent_washer||0,
         opex_selling_total: (s.opex_total||0) - (s.opex_admin_total||0) - (s.opex_repair||0) + (s.cogs_rent_ice||0) + (s.cogs_rent_washer||0),
         opex_total: (s.opex_total||0) + (s.cogs_rent_ice||0) + (s.cogs_rent_washer||0),
+        opex_rent_only: (s.cogs_rent_ice||0) + (s.cogs_rent_washer||0),
         ebt: s.ebt||0,
         tax_90: s.tax_90||0, tax_vat: s.tax_vat||0,
         tax_land: s.tax_land||0, tax_sign: s.tax_sign||0,
@@ -7700,6 +7701,7 @@ function computePLFromData(year) {
       opex_materials, opex_delivery_fee, opex_design, opex_sample, opex_marketing_total,
       opex_phone, opex_water, opex_internet, opex_electricity, opex_utilities_total,
       opex_rent_ice, opex_rent_washer, opex_rent_total, opex_selling_total,
+      opex_rent_only: opex_rent_ice + opex_rent_washer,
       opex_ceo, opex_accountant, opex_admin_total,
       opex_repair, opex_depreciation, opex_other_total, opex_total,
       ebt, tax_90, tax_vat, tax_land, tax_sign, tax_insurance, tax, net_profit,
@@ -7856,7 +7858,7 @@ function renderPL() {
       ${totRow('รวม สาธารณูปโภค','opex_utilities_total')}
       ${subRow('ค่าเช่าเครื่องทำน้ำแข็ง','opex_rent_ice')}
       ${subRow('ค่าเช่าเครื่องล้างจาน','opex_rent_washer')}
-      ${totRow('รวม ค่าใช้จ่ายในการขายและบริการ','opex_selling_total')}
+      ${totRow('รวม ค่าใช้จ่ายอื่นๆในการขาย','opex_rent_only')}
       ${subRow('ค่าจ้างบริหาร-CEO','opex_ceo')}
       ${subRow('ค่าจ้างบริหาร-บัญชี','opex_accountant')}
       ${totRow('รวม ค่าใช้จ่ายบริหาร','opex_admin_total')}
