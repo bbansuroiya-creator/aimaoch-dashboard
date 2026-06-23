@@ -2676,7 +2676,7 @@ function nav(btn) {
   const [t, s] = PAGE_TITLES[pid] || ['', ''];
   document.getElementById('topbar-title').textContent = t;
   document.getElementById('topbar-sub').textContent = s;
-  const hiddenMonthPages = ['reports','pl','salary','item-master','categories','suppliers','tx-cats','backup','users'];
+  const hiddenMonthPages = ['reports','pl','item-master','categories','suppliers','tx-cats','backup','users'];
   document.getElementById('global-month-pill').style.display = hiddenMonthPages.includes(pid) ? 'none' : '';
   if (pid === 'overview') renderOverview();
   if (pid === 'transactions') renderTxTable();
