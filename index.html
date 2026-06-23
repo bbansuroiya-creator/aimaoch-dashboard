@@ -2624,6 +2624,10 @@ function saveData(d) {
     console.error('saveData BLOCKED: would wipe existing data!', {keys: Object.keys(d)});
     return;
   }
+  // Guard: ป้องกัน pl_snapshot_2026 หาย — ถ้า cache มี snapshot ให้ preserve ไว้เสมอ
+  if (_dbCache.pl_snapshot_2026 && !d.pl_snapshot_2026 && !(d._resetConfirmed)) {
+    d = { ...d, pl_snapshot_2026: _dbCache.pl_snapshot_2026 };
+  }
   _dbCache = d;
   _plCache = {}; // invalidate PL cache on every save
   if (window.location.protocol === 'file:') {
