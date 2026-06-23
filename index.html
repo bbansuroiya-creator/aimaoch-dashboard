@@ -7606,6 +7606,7 @@ function computePLFromData(year) {
     const opex_other_total= opex_marketing_total + opex_phone + opex_internet
                           + opex_transport + opex_svc_fees + opex_other_misc + opex_repair + extra_opex;
 
+    const opex_other_selling = opex_transport + opex_svc_fees + opex_rent_ice + opex_rent_washer + opex_rent_other + opex_other_misc + extra_opex;
     result[mo] = {
       revenue, rev_food, rev_drink_na, rev_alc, rev_event, rev_other,
       other_income: 0, cogs_food, cogs_drink_na, cogs_alc, cogs_drink, cogs_packaging,
@@ -7614,8 +7615,11 @@ function computePLFromData(year) {
       opex_service, opex_musician, opex_welfare, opex_staff_total,
       opex_materials, opex_delivery_fee, opex_design, opex_sample, opex_marketing_total,
       opex_phone, opex_water, opex_internet, opex_electricity, opex_utilities_total,
-      opex_rent_ice, opex_rent_washer, opex_rent_total, opex_selling_total,
-      opex_rent_only: opex_rent_ice + opex_rent_washer,
+      opex_transport, opex_svc_fees,
+      opex_rent_ice, opex_rent_washer, opex_rent_other, opex_other_misc,
+      opex_extra: extra_opex,
+      opex_other_selling,
+      opex_rent_total, opex_selling_total,
       opex_ceo, opex_accountant, opex_admin_total,
       opex_repair, opex_depreciation, opex_other_total, opex_total,
       ebt, tax_90, tax_vat, tax_land, tax_sign, tax_insurance, tax, net_profit,
@@ -7770,9 +7774,14 @@ function renderPL() {
       ${subRow('ค่าอินเตอร์เน็ต','opex_internet')}
       ${subRow('ค่าไฟฟ้า','opex_electricity')}
       ${totRow('รวม สาธารณูปโภค','opex_utilities_total')}
+      ${subRow('ค่าขนส่ง','opex_transport')}
+      ${subRow('ค่าบริการดูแลรักษา/ลิขสิทธ์/ขออนุญาติ','opex_svc_fees')}
       ${subRow('ค่าเช่าเครื่องทำน้ำแข็ง','opex_rent_ice')}
       ${subRow('ค่าเช่าเครื่องล้างจาน','opex_rent_washer')}
-      ${totRow('รวม ค่าใช้จ่ายอื่นๆในการขาย','opex_rent_only')}
+      ${subRow('ค่าเช่าอื่นๆ (POS/อุปกรณ์)','opex_rent_other')}
+      ${subRow('ค่าใช้จ่ายอื่นๆ','opex_other_misc')}
+      ${subRow('ไม่จัดหมวด (อื่นๆ)','opex_extra',true)}
+      ${totRow('รวม ค่าใช้จ่ายอื่นๆในการขาย','opex_other_selling')}
       ${subRow('ค่าจ้างบริหาร-CEO','opex_ceo')}
       ${subRow('ค่าจ้างบริหาร-บัญชี','opex_accountant')}
       ${totRow('รวม ค่าใช้จ่ายบริหาร','opex_admin_total')}
