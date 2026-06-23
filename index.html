@@ -846,6 +846,15 @@ input[type="date"].form-input { font-family: var(--font-sans); }
     <!-- ── PAGE: TRANSACTIONS ── -->
     <div class="page" id="page-transactions">
       <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+        <button class="btn btn-outline" onclick="downloadTxTemplate()" title="ดาวน์โหลด Template สำหรับกรอกข้อมูล batch">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Template
+        </button>
+        <label class="btn btn-outline" style="cursor:pointer" title="Import จาก Excel template">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Import
+          <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importTxExcel(this.files[0]);this.value=''">
+        </label>
         <button class="btn btn-outline" onclick="exportTxExcel()">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Export Excel
@@ -1164,6 +1173,20 @@ input[type="date"].form-input { font-family: var(--font-sans); }
           </button>
           <button id="purge-po-btn" class="btn" style="width:100%;display:none;background:#fff;color:#0369a1;border:1.5px solid #0369a1;margin-top:8px" onclick="purgeOldPO()">
             🗑 ลบ PO เก่ากว่า 3 เดือน
+          </button>
+        </div>
+
+        <!-- Reset transaction data -->
+        <div class="card card-pad" style="border:1px solid #fed7aa">
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+            <div style="width:44px;height:44px;border-radius:12px;background:#ffedd5;display:flex;align-items:center;justify-content:center;font-size:22px">🔄</div>
+            <div>
+              <div style="font-weight:700;font-size:16px;color:#ea580c">เริ่มต้นใหม่ (Reset)</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:2px">ล้างรายรับ-รายจ่าย, รายรับรายวัน, เงินเดือน — คงเหลือผู้ใช้และสินค้า</div>
+            </div>
+          </div>
+          <button class="btn" style="width:100%;background:#fff;color:#ea580c;border:1.5px solid #fdba74" onclick="resetTransactionData()">
+            🔄 เริ่มต้นใหม่ทั้งหมด
           </button>
         </div>
 
@@ -2537,6 +2560,14 @@ async function _fsSave(d) {
 function loadData() { return _dbCache; }
 let _plCache = {}; // cache computePLFromData — invalidated on saveData
 function saveData(d) {
+  // Guard: ป้องกัน data wipe — ถ้า _dbCache มีข้อมูลอยู่แล้ว ห้าม overwrite ด้วยข้อมูลเปล่า
+  const _hasData = arr => Array.isArray(arr) && arr.length > 0;
+  const currentHasData = _hasData(_dbCache.txs) || _hasData(_dbCache.daily_inc) || Object.keys(_dbCache.salary_v2||{}).length > 0;
+  const newHasData = _hasData(d.txs) || _hasData(d.daily_inc) || Object.keys(d.salary_v2||{}).length > 0;
+  if (currentHasData && !newHasData && !(d._resetConfirmed)) {
+    console.error('saveData BLOCKED: would wipe existing data!', {keys: Object.keys(d)});
+    return;
+  }
   _dbCache = d;
   _plCache = {}; // invalidate PL cache on every save
   if (window.location.protocol === 'file:') {
@@ -3797,6 +3828,191 @@ function exportTxExcel() {
   toast(`✅ Export สำเร็จ ${rows.length-4} รายการ`, 'success');
 }
 
+// ════════════════════════════════════════════
+// BATCH IMPORT — Template Download & Import
+// ════════════════════════════════════════════
+function downloadTxTemplate() {
+  if (!window.XLSX) { toast('SheetJS ยังโหลดไม่เสร็จ','error'); return; }
+  const wb = XLSX.utils.book_new();
+
+  // ── Sheet 1: รายรับ-รายจ่าย ──
+  const txHeaders = ['วันที่(DD/MM/YYYY)','ประเภท','หมวดหมู่','รายการ','ช่องทาง','จำนวนเงิน','สถานะ'];
+  const txExamples = [
+    ['01/01/2026','รายจ่าย','ค่าวัตถุดิบ-เนื้อสัตว์','ซื้อวัตถุดิบครัว','เงินสด',5000,'ชำระแล้ว'],
+    ['01/01/2026','รายจ่าย','ค่าไฟฟ้า','ค่าไฟเดือนมกราคม','โอน',3200,'ชำระแล้ว'],
+    ['02/01/2026','รายจ่าย','ค่าแก๊ส','ค่าแก๊สหุงต้ม','เงินสด',800,'ชำระแล้ว'],
+    ['05/01/2026','รายรับ','รายรับอื่นๆ','รายรับพิเศษ','เงินสด',1000,'ชำระแล้ว'],
+  ];
+  const ws1 = XLSX.utils.aoa_to_sheet([txHeaders,...txExamples]);
+  ws1['!cols'] = [18,10,35,30,12,14,12].map(w=>({wch:w}));
+  // Style header row (note: SheetJS CE doesn't support cell styles without pro)
+  XLSX.utils.book_append_sheet(wb, ws1, 'รายรับ-รายจ่าย');
+
+  // ── Sheet 2: รายรับรายวัน ──
+  const diHeaders = ['วันที่(DD/MM/YYYY)','รายรับอาหาร','รายรับเครื่องดื่ม Non-Alc','รายรับเครื่องดื่ม Alc','รายรับ Event','รายรับอื่นๆ','ยอด Delivery (บาท)'];
+  const diExamples = [
+    ['01/01/2026',25000,8000,3000,0,500,2000],
+    ['02/01/2026',22000,7500,2500,0,0,1800],
+    ['03/01/2026',28000,9000,3500,5000,0,2200],
+  ];
+  const ws2 = XLSX.utils.aoa_to_sheet([diHeaders,...diExamples]);
+  ws2['!cols'] = [18,18,30,28,16,16,22].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws2, 'รายรับรายวัน');
+
+  // ── Sheet 3: หมวดหมู่อ้างอิง ──
+  const catRef = [
+    ['หมวดหมู่ทั้งหมด','กลุ่ม'],
+    ['=== ต้นทุนสินค้า (COGS) ===',''],
+    ['ค่าวัตถุดิบ-เนื้อสัตว์','cogs'],['ค่าวัตถุดิบ-อาหารทะเล','cogs'],['ค่าวัตถุดิบ-ผัก/ผลไม้','cogs'],
+    ['ค่าวัตถุดิบ-เครื่องปรุง','cogs'],['ค่าวัตถุดิบ-แป้ง/ข้าว','cogs'],['ค่าวัตถุดิบ-อื่นๆ','cogs'],
+    ['ค่าเครื่องดื่ม-โค้ก','cogs'],['ค่าเครื่องดื่ม Non Al-ธ.ภัทรพงษ์','cogs'],
+    ['ค่าเครื่องดื่มแอลกอฮอล์-เบียร์','cogs'],['ค่าเครื่องดื่มแอลกอฮอล์-ไวน์','cogs'],['ค่าเครื่องดื่มแอลกอฮอล์-สุรา','cogs'],
+    ['ค่าวัสดุสิ้นเปลือง-กล่อง','cogs'],['ค่าของใช้-Makro','cogs'],
+    ['ค่าแก๊ส','cogs'],['ค่าน้ำแข็ง','cogs'],['ค่าเครื่องดื่มพนักงาน-สยามวอเตอร์เพียว','cogs'],
+    ['=== ค่าใช้จ่ายดำเนินงาน (OpEx) ===',''],
+    ['ค่าสวัสดิการพนักงาน-อื่นๆ','opex'],['ค่าเบี้ยขยัน','opex'],['ค่าแบบฟอร์มพนักงาน','opex'],
+    ['ค่าวัสดุสิ้นเปลือง-การขายและบริการ','opex'],
+    ['ค่าออกแบบและผลิตสื่อ','opex'],
+    ['ค่าใช้จ่ายอื่นๆ-ค่าสินค้าตัวอย่าง','opex'],['ค่าสินค้าตัวอย่าง (เพื่อโอกาสทางธุรกิจ)','opex'],
+    ['ค่าส่งเสริมการขาย - ร้านค้า','opex'],['ค่าสื่อโฆษณาประชาสัมพันธ์','opex'],
+    ['ค่าโทรศัพท์','opex'],['ค่าน้ำบาดาล','opex'],['ค่าบริการอินเตอร์เน็ต','opex'],['ค่าไฟฟ้า','opex'],
+    ['ค่าขนส่ง-อื่นๆ','opex'],
+    ['ค่าใช้จ่ายการขออนุญาติประกอบการร้าน','opex'],
+    ['ค่าบริการดูแลรักษาร้านอาหาร : ล้างแอร์ ทำความสะอาด','opex'],
+    ['ค่าลิขสิทธ์เพลง - การขายและบริการ','opex'],
+    ['ค่าเช่า-เครื่องทำน้ำแข็ง','opex'],['ค่าเช่า-เครื่องล้างจาน','opex'],
+    ['ค่าเช่า - อุปกรณ์ร้าน','opex'],['ค่าเช่า - ระบบ POS','opex'],
+    ['ค่าใช้จ่ายอื่นๆ','opex'],['ค่าใช้จ่ายอื่นๆ-วัสดุสิ้นเปลือง','opex'],
+    ['ค่าใช้จ่ายอื่นๆ-ไหว้พระ','opex'],['ค่าใช้จ่ายอื่นๆ-ค่าของห้องขนม','opex'],
+    ['ค่าจ้างบริหาร - การตลาด (CEO)','opex'],['ค่าจ้างบริหาร - บัญชี','opex'],
+    ['ค่าซ่อมแซม - อาคาร','opex'],
+    ['=== ภาษี (Tax) ===',''],
+    ['ประกันร้าน','tax'],['ภาษีที่ดิน','tax'],['ภาษี ภงด. 90','tax'],['ภาษี ภพ 30.','tax'],
+    ['=== ประเภท ===',''],['รายรับ','income'],['รายจ่าย','expense'],
+    ['=== ช่องทาง ===',''],['เงินสด',''],['โอน',''],['บัตรเครดิต',''],['Delivery',''],
+    ['=== สถานะ ===',''],['ชำระแล้ว',''],['รอชำระ',''],
+  ];
+  const ws3 = XLSX.utils.aoa_to_sheet(catRef);
+  ws3['!cols'] = [{wch:45},{wch:10}];
+  XLSX.utils.book_append_sheet(wb, ws3, 'หมวดหมู่อ้างอิง');
+
+  XLSX.writeFile(wb, 'template_aimaoch_batch.xlsx');
+  toast('✅ ดาวน์โหลด Template แล้ว', 'success');
+}
+
+function _parseDateToISO(s) {
+  if (!s) return null;
+  s = String(s).trim();
+  // DD/MM/YYYY
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  // YYYY-MM-DD
+  m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  // DD-MM-YYYY
+  m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  // Excel serial date (integer)
+  const n = parseFloat(s);
+  if (!isNaN(n) && n > 40000 && n < 60000 && window.XLSX) {
+    try { const d = XLSX.SSF.parse_date_code(n); if (d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`; } catch {}
+  }
+  return null;
+}
+
+function importTxExcel(file) {
+  if (!file) return;
+  if (!window.XLSX) { toast('SheetJS ยังโหลดไม่เสร็จ','error'); return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+      const data = loadData();
+      let txAdded = 0, diAdded = 0, diUpdated = 0;
+      const errors = [];
+
+      // ── Parse รายรับ-รายจ่าย ──
+      const shTx = wb.SheetNames.find(n => n.includes('รายรับ-รายจ่าย') || n.includes('รายรับรายจ่าย'));
+      if (shTx) {
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[shTx], {header:1, defval:''});
+        const existingKeys = new Set((data.txs||[]).map(t=>`${t.date}|${t.note||''}|${t.amount}`));
+        for (let i = 1; i < rows.length; i++) {
+          const r = rows[i];
+          const dateRaw = r[0], typeRaw = String(r[1]||'').trim();
+          const cat = String(r[2]||'').trim(), note = String(r[3]||'').trim();
+          const channel = String(r[4]||'เงินสด').trim();
+          const amount = parseFloat(String(r[5]||0).replace(/,/g,''));
+          const statusRaw = String(r[6]||'').trim();
+          if (!dateRaw && !amount) continue;
+          const date = _parseDateToISO(dateRaw);
+          if (!date) { errors.push(`แถว ${i+1}: วันที่ไม่ถูกต้อง "${dateRaw}"`); continue; }
+          const type = typeRaw==='รายรับ' ? 'income' : typeRaw==='รายจ่าย' ? 'expense' : null;
+          if (!type) { errors.push(`แถว ${i+1}: ประเภท "${typeRaw}" ไม่ถูกต้อง (ใช้ รายรับ/รายจ่าย)`); continue; }
+          if (isNaN(amount) || amount <= 0) continue;
+          const key = `${date}|${note}|${amount}`;
+          if (existingKeys.has(key)) continue;
+          existingKeys.add(key);
+          (data.txs = data.txs||[]).push({
+            id: `imp_${Date.now()}_${i}`, date, type, cat, note, channel, amount,
+            status: statusRaw==='รอชำระ' ? 'pending' : 'paid',
+            createdAt: new Date().toISOString(),
+          });
+          txAdded++;
+        }
+      }
+
+      // ── Parse รายรับรายวัน ──
+      const shDI = wb.SheetNames.find(n => n.includes('รายรับรายวัน') || n.includes('รายรับ รายวัน'));
+      if (shDI) {
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[shDI], {header:1, defval:''});
+        const diMap = new Map((data.daily_inc||[]).map(e=>[e.date, e]));
+        const pn = v => parseFloat(String(v||0).replace(/,/g,''))||0;
+        for (let i = 1; i < rows.length; i++) {
+          const r = rows[i];
+          if (!r[0]) continue;
+          const date = _parseDateToISO(r[0]);
+          if (!date) continue;
+          const rf=pn(r[1]), rna=pn(r[2]), ra=pn(r[3]), re=pn(r[4]), ro=pn(r[5]), del=pn(r[6]);
+          const total = rf+rna+ra+re+ro;
+          if (total===0 && del===0) continue;
+          if (diMap.has(date)) {
+            const ex = diMap.get(date);
+            if (!ex.total) { // อัพเดทถ้าเปล่าอยู่
+              Object.assign(ex, {total, rev_food:rf, rev_drink_na:rna, rev_alc:ra, rev_event:re, rev_other:ro, delivery:del});
+              diUpdated++;
+            }
+          } else {
+            const entry = {date, total, rev_food:rf, rev_drink_na:rna, rev_alc:ra, rev_event:re, rev_other:ro, delivery:del};
+            (data.daily_inc = data.daily_inc||[]).push(entry);
+            diMap.set(date, entry);
+            diAdded++;
+          }
+        }
+      }
+
+      if (txAdded+diAdded+diUpdated > 0) {
+        saveData(data);
+        const parts = [];
+        if (txAdded)   parts.push(`รายรับ-รายจ่าย ${txAdded} รายการ`);
+        if (diAdded)   parts.push(`รายรับรายวัน ${diAdded} วัน (ใหม่)`);
+        if (diUpdated) parts.push(`รายรับรายวัน ${diUpdated} วัน (อัพเดท)`);
+        toast(`✅ Import สำเร็จ — ${parts.join(' | ')}`, 'success');
+        if (errors.length) setTimeout(()=>toast(`⚠️ ${errors.length} แถวข้ามไป: ${errors[0]}`, 'warning'), 800);
+        renderTransactions();
+        renderOverview();
+      } else if (errors.length) {
+        toast('⚠️ ไม่มีข้อมูลที่ import ได้ — ' + errors[0], 'error');
+      } else {
+        toast('ไม่มีข้อมูลใหม่ (อาจซ้ำทั้งหมดแล้ว)', 'warning');
+      }
+    } catch(err) {
+      console.error('Import error:', err);
+      toast('⚠️ อ่านไฟล์ไม่ได้: ' + err.message, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
 function renderTxTable() {
   const ym = getMonth();
   const data = loadData();
@@ -3939,37 +4155,18 @@ function renderOverview() {
   const totalIncLeg = txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
   const totalInc  = totalIncNew + totalIncLeg;
 
-  // ── ถ้ามี P&L snapshot ให้ใช้ค่า expense & profit จาก snapshot ──
-  // แต่ถ้าเป็น live month (เดือนปัจจุบัน+) ให้ใช้ live data เสมอ
-  const snap = data.pl_snapshot_2026?.[String(mo)];
-  const _nowOv = new Date();
-  const _isLiveMonthOv = parseInt(year) > _nowOv.getFullYear() ||
-    (parseInt(year) === _nowOv.getFullYear() && mo >= _nowOv.getMonth() + 1);
-  let totalExp, gp, useSnap = false, autoDeliveryFee = 0, plMoLive = {};
-  if (snap && snap.revenue > 0 && !_isLiveMonthOv) {
-    totalExp = (snap.cogs_total||0) + (snap.opex_total||0) + (snap.tax||0);
-    gp = snap.net_profit||0;
-    useSnap = true;
-  } else if (_isLiveMonthOv) {
-    // Live month: ใช้ computePLFromData เพื่อให้ตรงกับ P&L (รวม salary)
-    plMoLive = (computePLFromData(year)||{})[mo] || {};
-    totalExp = (plMoLive.cogs_total||0) + (plMoLive.opex_total||0) + (plMoLive.tax||0);
-    gp = plMoLive.net_profit || (totalInc - totalExp);
-    useSnap = true; // ใช้ flag เพื่อแสดง label "กำไรสุทธิ"
-  } else {
-    const txExp = txs.filter(t=>t.type==='expense' && !(t.note||'').includes('P&L')).reduce((s,t)=>s+t.amount,0);
-    const moDeliveryInc = dailyInc.reduce((s,e)=>s+(e.delivery||0),0);
-    autoDeliveryFee = Math.round(moDeliveryInc * DELIVERY_FEE_RATE);
-    totalExp = txExp + autoDeliveryFee;
-    gp = totalInc - totalExp;
-  }
+  // ── ใช้ computePLFromData สำหรับทุกเดือน (ไม่ต้องพึ่ง snapshot) ──
+  const plMo = (computePLFromData(year)||{})[mo] || {};
+  const totalExp = (plMo.cogs_total||0) + (plMo.opex_total||0) + (plMo.tax||0);
+  const gp = plMo.net_profit !== undefined ? plMo.net_profit : (totalInc - totalExp);
+  const useSnap = true; // แสดง label "กำไรสุทธิ" เสมอ
 
   // Today's sales
   const todayEntry = dailyInc.find(e=>e.date===today);
   const todayIncLeg = txs.filter(t=>t.type==='income'&&t.date===today).reduce((s,t)=>s+t.amount,0);
   const todayInc  = (todayEntry?.total||0) + todayIncLeg;
-  // Card 1: monthly sales — live months ใช้ totalInc เสมอ (daily_inc จริง), snapshot months ใช้ snap.revenue
-  const displayInc = (_isLiveMonthOv || !useSnap || !snap || snap.revenue <= 0) ? totalInc : snap.revenue;
+  // Card 1: ยอดขายรายวัน (daily_inc) เสมอ
+  const displayInc = totalInc;
   const moLabel = document.getElementById('ov-main-label');
   if (moLabel) moLabel.textContent = 'ยอดขายเดือนนี้';
   document.getElementById('ov-today').textContent = baht(displayInc);
@@ -4021,8 +4218,8 @@ function renderOverview() {
   // Category breakdown
   let expByCat = {};
   if (useSnap) {
-    // ดึง breakdown จาก snapshot หรือ live PL — ตรงกับ P&L
-    const s = _isLiveMonthOv ? plMoLive : snap;
+    // ดึง breakdown จาก computePLFromData
+    const s = plMo;
     const snapCats = [
       {k:'ต้นทุนอาหาร',       v:(s.cogs_food||0),            color:'#f97316'},
       {k:'เครื่องดื่ม',        v:(s.cogs_drink_na||0)+(s.cogs_alc||0), color:'#8b5cf6'},
@@ -8471,6 +8668,31 @@ async function confirmRestore() {
     }
     setTimeout(() => location.reload(), 1500);
   }
+}
+
+async function resetTransactionData() {
+  if (!confirm('⚠️ ล้างข้อมูลธุรกรรมทั้งหมด?\n\nจะลบ: รายรับ-รายจ่าย, รายรับรายวัน, เงินเดือน\nคงเหลือ: ข้อมูลผู้ใช้, Item Master, Supplier\n\nกด OK เพื่อยืนยัน')) return;
+  if (!confirm('ยืนยันอีกครั้ง — ข้อมูลจะถูกลบทันที ไม่สามารถกู้คืนได้')) return;
+  const data = loadData();
+  const freshData = {
+    users: data.users || [],
+    current_user: data.current_user || 'u0',
+    categories: data.categories,
+    tx_cat_buckets: data.tx_cat_buckets,
+    _resetConfirmed: true, // bypass saveData guard
+  };
+  // ล้าง po_items ไม่ได้ — เก็บไว้
+  _dbCache = freshData;
+  _plCache = {};
+  localStorage.removeItem('aimaoch_v2');
+  try {
+    await _COL.doc('main').set(freshData);
+    await _COL.doc('daily_inc').set({ items: [] });
+    toast('✅ ล้างข้อมูลธุรกรรมแล้ว — กำลังโหลดใหม่...', 'success');
+  } catch(e) {
+    toast('⚠️ บันทึกไม่ครบ: ' + e.message, 'error');
+  }
+  setTimeout(() => location.reload(), 1500);
 }
 
 function confirmClearAll() {
