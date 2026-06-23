@@ -3945,16 +3945,16 @@ function renderOverview() {
   const _nowOv = new Date();
   const _isLiveMonthOv = parseInt(year) > _nowOv.getFullYear() ||
     (parseInt(year) === _nowOv.getFullYear() && mo >= _nowOv.getMonth() + 1);
-  let totalExp, gp, useSnap = false, autoDeliveryFee = 0;
+  let totalExp, gp, useSnap = false, autoDeliveryFee = 0, plMoLive = {};
   if (snap && snap.revenue > 0 && !_isLiveMonthOv) {
     totalExp = (snap.cogs_total||0) + (snap.opex_total||0) + (snap.tax||0);
     gp = snap.net_profit||0;
     useSnap = true;
   } else if (_isLiveMonthOv) {
     // Live month: ใช้ computePLFromData เพื่อให้ตรงกับ P&L (รวม salary)
-    const plMo = (computePLFromData(year)||{})[mo] || {};
-    totalExp = (plMo.cogs_total||0) + (plMo.opex_total||0) + (plMo.tax||0);
-    gp = plMo.net_profit || (totalInc - totalExp);
+    plMoLive = (computePLFromData(year)||{})[mo] || {};
+    totalExp = (plMoLive.cogs_total||0) + (plMoLive.opex_total||0) + (plMoLive.tax||0);
+    gp = plMoLive.net_profit || (totalInc - totalExp);
     useSnap = true; // ใช้ flag เพื่อแสดง label "กำไรสุทธิ"
   } else {
     const txExp = txs.filter(t=>t.type==='expense' && !(t.note||'').includes('P&L')).reduce((s,t)=>s+t.amount,0);
@@ -4021,8 +4021,8 @@ function renderOverview() {
   // Category breakdown
   let expByCat = {};
   if (useSnap) {
-    // ดึง breakdown จาก snapshot — ตรงกับ P&L
-    const s = snap;
+    // ดึง breakdown จาก snapshot หรือ live PL — ตรงกับ P&L
+    const s = _isLiveMonthOv ? plMoLive : snap;
     const snapCats = [
       {k:'ต้นทุนอาหาร',       v:(s.cogs_food||0),            color:'#f97316'},
       {k:'เครื่องดื่ม',        v:(s.cogs_drink_na||0)+(s.cogs_alc||0), color:'#8b5cf6'},
