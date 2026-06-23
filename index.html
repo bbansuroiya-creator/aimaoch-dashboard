@@ -7780,7 +7780,14 @@ function renderPL() {
   });
 
   // ── P&L Table ──
-  const fmt   = (v, mo) => !act(mo) ? '<span class="pl-dash">—</span>' : (Math.round(v)||0).toLocaleString('th-TH');
+  // แสดง "—" เฉพาะเดือนที่ข้อมูลเป็น 0 จริงๆ ถ้ามีค่าแต่ไม่มีรายรับให้แสดงสีเทา
+  const fmt = (v, mo) => {
+    const rv = Math.round(v) || 0;
+    if (!act(mo)) return rv !== 0
+      ? `<span style="color:#9ca3af;font-size:11px">${rv.toLocaleString('th-TH')}</span>`
+      : '<span class="pl-dash">—</span>';
+    return rv.toLocaleString('th-TH');
+  };
   const fmtV  = v => (Math.round(v)||0).toLocaleString('th-TH');
   const fmtTot= key => fmtV(sum(key));
   const fmtPct= (num, den) => den>0 ? (num/den*100).toFixed(1)+'%' : '—';
@@ -7818,22 +7825,39 @@ function renderPL() {
       ${row('รายรับรวม','revenue','','font-weight:600;color:var(--success-700)')}
       ${divRow()}
       ${grp('ต้นทุนขาย (COGS)')}
-      ${subRow('วัตถุดิบอาหาร+ขนม','cogs_food')}
-      ${subRow('เครื่องดื่ม','cogs_drink')}
-      ${subRow('บรรจุภัณฑ์','cogs_packaging')}
-      ${subRow('ค่าดำเนินการ','cogs_operations')}
+      ${subRow('ต้นทุนวัตถุดิบ-อาหาร','cogs_food')}
+      ${subRow('ต้นทุนวัตถุดิบ-เครื่องดื่ม (Non-Alc)','cogs_drink_na')}
+      ${subRow('ต้นทุนวัตถุดิบ-แอลกอฮอล์','cogs_alc')}
+      ${subRow('ต้นทุนบรรจุภัณฑ์','cogs_packaging')}
+      ${subRow('ต้นทุนแรงงาน-พ่อครัว/แม่ครัว','cogs_labor_kitchen')}
+      ${subRow('ค่าก๊าซหุงต้ม','cogs_gas')}
       ${totRow('รวม COGS','cogs_total')}
       ${gpRow2('กำไรขั้นต้น (Gross Profit)','gross_profit')}
       ${pctRowFn('Gross Margin %','gross_profit','revenue')}
       ${divRow()}
       ${grp('ค่าใช้จ่ายดำเนินงาน (Operating Expenses)')}
-      ${subRow('เงินเดือนพนักงาน','opex_staff_total')}
-      ${subRow('ค่าจ้างบริหาร','opex_admin_total')}
-      ${subRow('ค่าเช่า','opex_rent_total')}
+      ${subRow('เงินเดือนพนักงานบริการ','opex_service')}
+      ${subRow('ค่าจ้างนักดนตรี','opex_musician')}
+      ${subRow('ค่าสวัสดิการพนักงาน','opex_welfare')}
+      ${totRow('รวม เงินเดือนและค่าจ้าง','opex_staff_total')}
+      ${subRow('ค่าวัสดุสิ้นเปลือง','opex_materials')}
+      ${subRow('ค่าแพลตฟอร์ม Delivery','opex_delivery_fee')}
+      ${subRow('ค่าออกแบบและผลิตสื่อ','opex_design')}
+      ${subRow('ค่าสินค้าตัวอย่าง','opex_sample')}
+      ${totRow('รวม การตลาด','opex_marketing_total')}
+      ${subRow('ค่าโทรศัพท์','opex_phone')}
+      ${subRow('ค่าน้ำบาดาล','opex_water')}
+      ${subRow('ค่าอินเตอร์เน็ต','opex_internet')}
       ${subRow('ค่าไฟฟ้า','opex_electricity')}
-      ${subRow('ค่าน้ำประปา','opex_water')}
-      ${subRow('ค่าใช้จ่ายอื่นๆ','opex_other_total')}
-      ${totRow('รวม Opex','opex_total')}
+      ${totRow('รวม สาธารณูปโภค','opex_utilities_total')}
+      ${subRow('ค่าเช่าเครื่องทำน้ำแข็ง','opex_rent_ice')}
+      ${subRow('ค่าเช่าเครื่องล้างจาน','opex_rent_washer')}
+      ${totRow('รวม ค่าใช้จ่ายในการขายและบริการ','opex_selling_total')}
+      ${subRow('ค่าจ้างบริหาร-CEO','opex_ceo')}
+      ${subRow('ค่าจ้างบริหาร-บัญชี','opex_accountant')}
+      ${totRow('รวม ค่าใช้จ่ายบริหาร','opex_admin_total')}
+      ${subRow('ค่าซ่อมแซม','opex_repair')}
+      ${totRow('รวม ค่าใช้จ่ายดำเนินงาน','opex_total')}
       ${divRow()}
       ${ebtRow2('EBIT (กำไรก่อนดอกเบี้ยและภาษี)','ebt')}
       ${divRow()}
