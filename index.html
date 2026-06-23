@@ -2019,7 +2019,7 @@ input[type="date"].form-input { font-family: var(--font-sans); }
 
 <!-- ════════════ INCOME MODAL ════════════ -->
 <div id="income-modal-overlay" onclick="closeIncomeModal(event)" style="position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:600">
-  <div id="income-modal" style="background:var(--white);border-radius:var(--radius-xl);box-shadow:var(--shadow-md);width:min(560px,calc(100vw - 32px));max-height:90vh;overflow-y:auto">
+  <div id="income-modal" style="background:var(--white);border-radius:var(--radius-xl);box-shadow:var(--shadow-md);width:min(560px,calc(100vw - 32px));max-height:90vh;display:flex;flex-direction:column;overflow:hidden">
     <div class="modal-head">
       <div>
         <h2>บันทึกรายรับประจำวัน</h2>
@@ -2029,7 +2029,7 @@ input[type="date"].form-input { font-family: var(--font-sans); }
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
       </button>
     </div>
-    <div class="modal-body">
+    <div class="modal-body" style="overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
         <div class="form-group">
           <label class="form-label">วันที่ *</label>
