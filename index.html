@@ -3412,16 +3412,22 @@ function exportSalaryExcel() {
 function downloadSalaryTemplate() {
   if (!window.XLSX) { toast('SheetJS ยังโหลดไม่เสร็จ','error'); return; }
   const wb = XLSX.utils.book_new();
+  const DEPT_TH = {kitchen:'ครัว', service:'บริการ', musician:'นักดนตรี', other:'บริหาร'};
 
-  // Sheet 1: ข้อมูลเงินเดือน
+  // Sheet 1: ดึงชื่อจาก Staff Master ถ้ามี ไม่งั้นใช้ตัวอย่าง
   const headers = ['เดือน(MM/YYYY)','ชื่อพนักงาน','แผนก','งวด1 (บาท)','งวด2 (บาท)','หมายเหตุ'];
-  const examples = [
-    ['01/2026','สมชาย ใจดี','ครัว',8000,7000,''],
-    ['01/2026','สมหญิง รักงาน','บริการ',7000,6000,''],
-    ['01/2026','นักดนตรี A','นักดนตรี',5000,5000,''],
-    ['02/2026','สมชาย ใจดี','ครัว',8000,7000,''],
-  ];
-  const ws = XLSX.utils.aoa_to_sheet([headers,...examples]);
+  const staff = loadData().staff || [];
+  const ym = getMonth(); // เดือนปัจจุบัน
+  const [yr, mo] = ym.split('-');
+  const moStr = `${mo}/${yr}`;
+  const rows = staff.length
+    ? staff.map(s => [moStr, s.name, DEPT_TH[s.dept]||'ครัว', '', '', ''])
+    : [
+        ['01/2026','สมชาย ใจดี','ครัว',8000,7000,''],
+        ['01/2026','สมหญิง รักงาน','บริการ',7000,6000,''],
+        ['01/2026','นักดนตรี A','นักดนตรี',5000,5000,''],
+      ];
+  const ws = XLSX.utils.aoa_to_sheet([headers,...rows]);
   ws['!cols'] = [14,20,12,14,14,20].map(w=>({wch:w}));
 
   // Sheet 2: แผนกอ้างอิง
