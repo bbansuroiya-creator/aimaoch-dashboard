@@ -9982,6 +9982,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.body.style.opacity = '';
   _dbReady = true;
 
+  // Auto-restore pl_snapshot_2026 ถ้าหายไป
+  if (!_dbCache.pl_snapshot_2026 || Object.keys(_dbCache.pl_snapshot_2026||{}).length === 0) {
+    console.warn('pl_snapshot_2026 missing — auto-restoring from built-in backup');
+    _dbCache.pl_snapshot_2026 = {
+      "1": { revenue:1326292, cogs_food:338345, cogs_drink_na:8961, cogs_alc:83201, cogs_packaging:494, cogs_labor_kitchen:97000, cogs_gas:10275, cogs_rent_ice:5350, cogs_rent_washer:5350, cogs_total:548976, other_income:0, gross_profit:777316, opex_ceo:51000, opex_accountant:4000, opex_admin_total:55000, opex_repair:0, opex_selling_total:190497, opex_total:234797, ebt:542519, tax_90:9312, tax_vat:7829, tax_sign:0, tax_land:0, tax_insurance:0, tax:17141, net_profit:525378 },
+      "2": { revenue:1267010, cogs_food:380807, cogs_drink_na:8144, cogs_alc:63033, cogs_packaging:21068, cogs_labor_kitchen:98450, cogs_gas:9510, cogs_rent_ice:5350, cogs_rent_washer:5350, cogs_total:651663, other_income:0, gross_profit:615347, opex_ceo:51000, opex_accountant:4000, opex_admin_total:55000, opex_repair:7780, opex_selling_total:205922, opex_total:258002, ebt:357345, tax_90:0, tax_vat:3357, tax_sign:0, tax_land:0, tax_insurance:0, tax:3357, net_profit:353988 },
+      "3": { revenue:1347146, cogs_food:403583, cogs_drink_na:14327, cogs_alc:101633, cogs_packaging:2186, cogs_labor_kitchen:111650, cogs_gas:11250, cogs_rent_ice:5350, cogs_rent_washer:5350, cogs_total:655329, other_income:0, gross_profit:691817, opex_ceo:51000, opex_accountant:4000, opex_admin_total:55000, opex_repair:14784, opex_selling_total:272244, opex_total:331328, ebt:360489, tax_90:0, tax_vat:4114, tax_sign:0, tax_land:0, tax_insurance:0, tax:4114, net_profit:356375 },
+      "4": { revenue:1279635, cogs_food:374493, cogs_drink_na:8400, cogs_alc:70935, cogs_packaging:1414, cogs_labor_kitchen:112650, cogs_gas:9940, cogs_rent_ice:5350, cogs_rent_washer:5350, cogs_total:588532, other_income:0, gross_profit:691103, opex_ceo:51000, opex_accountant:4000, opex_admin_total:55000, opex_repair:20430, opex_selling_total:256103, opex_total:320833, ebt:370270, tax_90:0, tax_vat:4156, tax_sign:0, tax_land:0, tax_insurance:0, tax:4156, net_profit:366114 },
+      "5": { revenue:1428207, cogs_food:414598, cogs_drink_na:15358, cogs_alc:94827, cogs_packaging:2854, cogs_labor_kitchen:111250, cogs_gas:11360, cogs_rent_ice:0, cogs_rent_washer:0, cogs_total:650247, other_income:0, gross_profit:777960, opex_ceo:0, opex_accountant:0, opex_admin_total:0, opex_repair:0, opex_selling_total:318163, opex_total:318163, ebt:459797, tax_90:0, tax_vat:0, tax_sign:0, tax_land:11012, tax_insurance:17871, tax:28883, net_profit:430914 }
+    };
+    _fsSave(_dbCache).catch(e => console.error('Auto-restore save error:', e));
+  }
+
   migrateCategoryNames();
   migrateExpensesToTxs();
   const now = new Date();
