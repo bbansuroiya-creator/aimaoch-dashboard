@@ -1070,6 +1070,31 @@ input[type="date"].form-input { font-family: var(--font-sans); }
     </div>
 
     <!-- ── P&L EVENT EDIT MODAL ── -->
+    <!-- ── TAX BREAKDOWN MODAL ── -->
+    <div id="pl-tax-overlay" class="modal-overlay" style="display:none" onclick="if(event.target===this)closePLTaxModal()">
+      <div class="modal-box" style="max-width:700px;width:97%">
+        <div class="modal-header">
+          <span class="modal-title">🧾 กรอกภาษีรายเดือน</span>
+          <button class="modal-close" onclick="closePLTaxModal()">✕</button>
+        </div>
+        <div class="modal-body" style="overflow-x:auto">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">กรอกภาษีแยกประเภทตามเดือน — บันทึกลง P&L Snapshot โดยตรง</div>
+          <div id="pl-tax-grid" style="display:grid;grid-template-columns:70px repeat(5,1fr);gap:6px;align-items:center;min-width:560px">
+            <div style="font-size:11px;font-weight:600;color:var(--text-muted)">เดือน</div>
+            <div style="font-size:11px;font-weight:600;color:var(--text-muted)">ภงด.90</div>
+            <div style="font-size:11px;font-weight:600;color:var(--text-muted)">ภพ 30</div>
+            <div style="font-size:11px;font-weight:600;color:var(--text-muted)">ภาษีป้าย</div>
+            <div style="font-size:11px;font-weight:600;color:var(--text-muted)">ภาษีที่ดิน</div>
+            <div style="font-size:11px;font-weight:600;color:var(--text-muted)">ประกันร้าน</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost" onclick="closePLTaxModal()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="savePLTaxData()">✅ บันทึก</button>
+        </div>
+      </div>
+    </div>
+
     <div id="pl-event-overlay" class="modal-overlay" style="display:none" onclick="if(event.target===this)closePLEventModal()">
       <div class="modal-box" style="max-width:520px;width:95%">
         <div class="modal-header">
@@ -1873,6 +1898,7 @@ input[type="date"].form-input { font-family: var(--font-sans); }
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
             Excel
           </button>
+          <button class="btn btn-outline" style="font-size:13px;padding:8px 18px" onclick="openPLTaxModal()">🧾 กรอกภาษี</button>
           <button class="btn" style="background:#ef4444;color:#fff;font-size:13px;padding:8px 18px" onclick="exportPLPDF()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>
             PDF
@@ -8571,6 +8597,57 @@ function removeTxCatGroup(group) {
 // ════════════════════════════════════════════
 // P&L EVENT DATA EDITOR
 // ════════════════════════════════════════════
+function openPLTaxModal() {
+  const data = loadData();
+  const snap = data.pl_snapshot_2026 || {};
+  const MO_SHORT = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const TAX_FIELDS = ['tax_90','tax_vat','tax_sign','tax_land','tax_insurance'];
+  const grid = document.getElementById('pl-tax-grid');
+  // Remove old rows (keep header = 6 divs)
+  while (grid.children.length > 6) grid.removeChild(grid.lastChild);
+  for (let mo = 1; mo <= 12; mo++) {
+    const s = snap[String(mo)] || {};
+    const label = document.createElement('div');
+    label.style.cssText = 'font-size:12px;color:var(--text-heading);padding:2px 0';
+    label.textContent = MO_SHORT[mo-1];
+    grid.appendChild(label);
+    TAX_FIELDS.forEach(f => {
+      const inp = document.createElement('input');
+      inp.type = 'number'; inp.min = '0'; inp.placeholder = '0';
+      inp.id = `pl-tax-${f}-${mo}`;
+      inp.className = 'form-input';
+      inp.style.cssText = 'font-size:12px;padding:5px 8px';
+      inp.value = s[f] || '';
+      grid.appendChild(inp);
+    });
+  }
+  document.getElementById('pl-tax-overlay').style.display = 'flex';
+}
+function closePLTaxModal() {
+  document.getElementById('pl-tax-overlay').style.display = 'none';
+}
+function savePLTaxData() {
+  const data = loadData();
+  if (!data.pl_snapshot_2026) data.pl_snapshot_2026 = {};
+  const TAX_FIELDS = ['tax_90','tax_vat','tax_sign','tax_land','tax_insurance'];
+  for (let mo = 1; mo <= 12; mo++) {
+    if (!data.pl_snapshot_2026[String(mo)]) data.pl_snapshot_2026[String(mo)] = {};
+    let taxTotal = 0;
+    TAX_FIELDS.forEach(f => {
+      const v = parseFloat(document.getElementById(`pl-tax-${f}-${mo}`)?.value) || 0;
+      data.pl_snapshot_2026[String(mo)][f] = v;
+      taxTotal += v;
+    });
+    // อัปเดต tax รวมด้วยถ้าผู้ใช้กรอก breakdown
+    if (taxTotal > 0) data.pl_snapshot_2026[String(mo)].tax = taxTotal;
+  }
+  saveData(data);
+  _plCache = {};
+  closePLTaxModal();
+  renderPL();
+  toast('✅ บันทึกภาษีแล้ว', 'success');
+}
+
 function openPLEventModal() {
   const data = loadData();
   const snap = data.pl_snapshot_2026 || {};
