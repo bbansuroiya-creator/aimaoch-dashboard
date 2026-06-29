@@ -7597,7 +7597,7 @@ function computePLFromData(year) {
     // Opex – การตลาด
     const opex_materials    = sumCat(c => c === 'ค่าวัสดุสิ้นเปลือง-การขายและบริการ');
     const opex_delivery_fee = Math.round(dailyInc.reduce((s,e)=>s+(e.delivery||0),0) * DELIVERY_FEE_RATE);
-    const opex_design       = sumCat(c => c === 'ค่าออกแบบและผลิตสื่อ');
+    const opex_design       = sumCat(c => ['ค่าออกแบบและผลิตสื่อ','ค่าใช้จ่ายอื่นๆ-ค่าสื่อโฆษณา'].includes(c));
     const opex_sample       = sumCat(c => ['ค่าใช้จ่ายอื่นๆ-ค่าสินค้าตัวอย่าง','ค่าสินค้าตัวอย่าง (เพื่อโอกาสทางธุรกิจ)'].includes(c));
     const opex_marketing    = sumCat(c => ['ค่าส่งเสริมการขาย - ร้านค้า','ค่าสื่อโฆษณาประชาสัมพันธ์'].includes(c));
     const opex_marketing_total = opex_materials + opex_delivery_fee + opex_design + opex_sample + opex_marketing;
@@ -7618,7 +7618,7 @@ function computePLFromData(year) {
     const opex_rent_washer = sumCat(c => c === 'ค่าเช่า-เครื่องล้างจาน');
     const opex_rent_other  = sumCat(c => ['ค่าเช่า - อุปกรณ์ร้าน','ค่าเช่า - ระบบ POS'].includes(c));
     const opex_other_misc  = sumCat(c => ['ค่าใช้จ่ายอื่นๆ','ค่าใช้จ่ายอื่นๆ-วัสดุสิ้นเปลือง',
-      'ค่าใช้จ่ายอื่นๆ-ไหว้พระ','ค่าใช้จ่ายอื่นๆ-ค่าของห้องขนม','ค่าใช้จ่ายอื่นๆ-ค่าสื่อโฆษณา',
+      'ค่าใช้จ่ายอื่นๆ-ไหว้พระ','ค่าใช้จ่ายอื่นๆ-ค่าของห้องขนม',
       'ค่าของใช้-Makro'].includes(c));
     const opex_selling_total = opex_staff_total + opex_marketing_total + opex_utilities_total
                              + opex_transport + opex_svc_fees + opex_rent_ice + opex_rent_washer + opex_rent_other + opex_other_misc + extra_opex;
