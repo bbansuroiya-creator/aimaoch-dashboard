@@ -4199,12 +4199,13 @@ function importTxExcel(file) {
           if (total===0 && del===0) continue;
           if (diMap.has(date)) {
             const ex = diMap.get(date);
+            if (!ex.id) ex.id = `di_${Date.now()}_${i}`; // fix missing id
             if (!ex.total) { // อัพเดทถ้าเปล่าอยู่
               Object.assign(ex, {total, rev_food:rf, rev_drink_na:rna, rev_alc:ra, rev_event:re, rev_other:ro, delivery:del});
               diUpdated++;
             }
           } else {
-            const entry = {date, total, rev_food:rf, rev_drink_na:rna, rev_alc:ra, rev_event:re, rev_other:ro, delivery:del};
+            const entry = {id:`di_${Date.now()}_${i}`, date, total, rev_food:rf, rev_drink_na:rna, rev_alc:ra, rev_event:re, rev_other:ro, delivery:del};
             (data.daily_inc = data.daily_inc||[]).push(entry);
             diMap.set(date, entry);
             diAdded++;
@@ -7568,8 +7569,7 @@ function computePLFromData(year) {
     const cogs_labor_kitchen = salEmps.filter(e=>e.dept==='kitchen').reduce((s,e)=>s+(e.p1||0)+(e.p2||0), 0);
     const cogs_gas_fuel = sumCat(c => c === 'ค่าแก๊ส');
     const cogs_ice      = sumCat(c => c === 'ค่าน้ำแข็ง');
-    const cogs_water_emp= sumCat(c => c === 'ค่าเครื่องดื่มพนักงาน-สยามวอเตอร์เพียว');
-    const cogs_gas      = cogs_gas_fuel + cogs_ice + cogs_water_emp; // รวมสำหรับ subtotal
+    const cogs_gas      = cogs_gas_fuel + cogs_ice;
     const cogs_event = 0; // live calc: no event cost category yet
     const cogs_rent_ice = 0; const cogs_rent_washer = 0; // ย้ายไป OpEx
     const cogs_total = cogs_food + cogs_drink_na + cogs_alc + cogs_packaging
@@ -7579,7 +7579,7 @@ function computePLFromData(year) {
     // Opex – พนักงาน
     const opex_service  = salEmps.filter(e=>e.dept==='service').reduce((s,e)=>s+(e.p1||0)+(e.p2||0), 0);
     const opex_musician = salEmps.filter(e=>e.dept==='musician').reduce((s,e)=>s+(e.p1||0)+(e.p2||0), 0);
-    const opex_welfare  = sumCat(c => ['ค่าสวัสดิการพนักงาน-อื่นๆ','ค่าเบี้ยขยัน','ค่าแบบฟอร์มพนักงาน'].includes(c));
+    const opex_welfare  = sumCat(c => ['ค่าสวัสดิการพนักงาน-อื่นๆ','ค่าเบี้ยขยัน','ค่าแบบฟอร์มพนักงาน','ค่าเครื่องดื่มพนักงาน-สยามวอเตอร์เพียว'].includes(c));
     const opex_staff_total = opex_service + opex_musician + opex_welfare;
 
     // Opex – การตลาด
@@ -7643,7 +7643,7 @@ function computePLFromData(year) {
       revenue, rev_food, rev_drink_na, rev_alc, rev_event, rev_other,
       other_income: 0, cogs_food, cogs_drink_na, cogs_alc, cogs_drink, cogs_packaging,
       cogs_labor_kitchen, cogs_rent_ice, cogs_rent_washer,
-      cogs_gas_fuel, cogs_ice, cogs_water_emp, cogs_gas, cogs_event, cogs_operations,
+      cogs_gas_fuel, cogs_ice, cogs_gas, cogs_event, cogs_operations,
       cogs_total, gross_profit,
       opex_service, opex_musician, opex_welfare, opex_staff_total,
       opex_materials, opex_delivery_fee, opex_design, opex_sample, opex_marketing_total,
@@ -7789,7 +7789,6 @@ function renderPL() {
       ${subRow('ต้นทุนแรงงาน-พ่อครัว/แม่ครัว','cogs_labor_kitchen')}
       ${subRow('ค่าก๊าซหุงต้ม','cogs_gas_fuel')}
       ${subRow('ค่าน้ำแข็ง','cogs_ice')}
-      ${subRow('ค่าเครื่องดื่มพนักงาน','cogs_water_emp')}
       ${totRow('รวม COGS','cogs_total')}
       ${gpRow2('กำไรขั้นต้น (Gross Profit)','gross_profit')}
       ${pctRowFn('Gross Margin %','gross_profit','revenue')}
@@ -7858,7 +7857,6 @@ function exportPLExcel() {
     ['ต้นทุนแรงงาน-พ่อครัว/แม่ครัว',...arr('cogs_labor_kitchen'),sum('cogs_labor_kitchen')],
     ['ค่าก๊าซหุงต้ม',...arr('cogs_gas_fuel'),sum('cogs_gas_fuel')],
     ['ค่าน้ำแข็ง',...arr('cogs_ice'),sum('cogs_ice')],
-    ['ค่าเครื่องดื่มพนักงาน',...arr('cogs_water_emp'),sum('cogs_water_emp')],
     ['ต้นทุนงาน Event',...arr('cogs_event'),sum('cogs_event')],
     ['รวม COGS',...arr('cogs_total'),sum('cogs_total')],
     ['กำไรขั้นต้น',...arr('gross_profit'),sum('gross_profit')],
@@ -9914,6 +9912,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   migrateCategoryNames();
   migrateExpensesToTxs();
+  // Fix daily_inc entries ที่ไม่มี id (จาก batch import เก่า)
+  (function fixDailyIncIds() {
+    const data = loadData();
+    let fixed = 0;
+    (data.daily_inc||[]).forEach((e,i) => { if (!e.id) { e.id = `di_fix_${Date.now()}_${i}`; fixed++; } });
+    if (fixed > 0) saveData(data);
+  })();
   const now = new Date();
   const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const sel = document.getElementById('globalMonth');
