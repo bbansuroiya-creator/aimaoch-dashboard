@@ -2603,15 +2603,27 @@ async function _fsLoad() {
     daily_inc: incSnap.exists ? (incSnap.data().items || []) : [],
   };
 }
+function _stripUndefined(obj) {
+  if (Array.isArray(obj)) return obj.map(_stripUndefined);
+  if (obj !== null && typeof obj === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(obj)) {
+      if (v !== undefined) out[k] = _stripUndefined(v);
+    }
+    return out;
+  }
+  return obj;
+}
 async function _fsSave(d) {
   const { po_items = [], daily_inc = [], ...rest } = d;
+  const safeRest = _stripUndefined(rest);
   const writes = [
-    _COL.doc('main').set(rest),
-    _COL.doc('daily_inc').set({ items: daily_inc }),
+    _COL.doc('main').set(safeRest),
+    _COL.doc('daily_inc').set({ items: _stripUndefined(daily_inc) }),
   ];
   // Chunk po_items into multiple docs
   for (let i = 0; i < _PO_MAX_CHUNKS; i++) {
-    const chunk = po_items.slice(i * _PO_CHUNK, (i + 1) * _PO_CHUNK);
+    const chunk = _stripUndefined(po_items.slice(i * _PO_CHUNK, (i + 1) * _PO_CHUNK));
     writes.push(_COL.doc(`po_items_${i}`).set({ items: chunk }));
   }
   await Promise.all(writes);
