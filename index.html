@@ -7577,7 +7577,7 @@ function computePLFromData(year) {
     const cogs_food     = sumCat(c => c.startsWith('ค่าวัตถุดิบ-'));
     const cogs_drink_na = sumCat(c => ['ค่าเครื่องดื่ม-โค้ก','ค่าเครื่องดื่ม Non Al-ธ.ภัทรพงษ์'].includes(c));
     const cogs_alc      = sumCat(c => c.startsWith('ค่าเครื่องดื่มแอลกอฮอล์-'));
-    const cogs_packaging= sumCat(c => ['ค่าวัสดุสิ้นเปลือง-กล่อง','ค่าของใช้-Makro'].includes(c));
+    const cogs_packaging= sumCat(c => c === 'ค่าวัสดุสิ้นเปลือง-กล่อง');
     const cogs_labor_kitchen = salEmps.filter(e=>e.dept==='kitchen').reduce((s,e)=>s+(e.p1||0)+(e.p2||0), 0);
     const cogs_gas_fuel = sumCat(c => c === 'ค่าแก๊ส');
     const cogs_ice      = sumCat(c => c === 'ค่าน้ำแข็ง');
@@ -7618,7 +7618,8 @@ function computePLFromData(year) {
     const opex_rent_washer = sumCat(c => c === 'ค่าเช่า-เครื่องล้างจาน');
     const opex_rent_other  = sumCat(c => ['ค่าเช่า - อุปกรณ์ร้าน','ค่าเช่า - ระบบ POS'].includes(c));
     const opex_other_misc  = sumCat(c => ['ค่าใช้จ่ายอื่นๆ','ค่าใช้จ่ายอื่นๆ-วัสดุสิ้นเปลือง',
-      'ค่าใช้จ่ายอื่นๆ-ไหว้พระ','ค่าใช้จ่ายอื่นๆ-ค่าของห้องขนม','ค่าใช้จ่ายอื่นๆ-ค่าสื่อโฆษณา'].includes(c));
+      'ค่าใช้จ่ายอื่นๆ-ไหว้พระ','ค่าใช้จ่ายอื่นๆ-ค่าของห้องขนม','ค่าใช้จ่ายอื่นๆ-ค่าสื่อโฆษณา',
+      'ค่าของใช้-Makro'].includes(c));
     const opex_selling_total = opex_staff_total + opex_marketing_total + opex_utilities_total
                              + opex_transport + opex_svc_fees + opex_rent_ice + opex_rent_washer + opex_rent_other + opex_other_misc + extra_opex;
 
