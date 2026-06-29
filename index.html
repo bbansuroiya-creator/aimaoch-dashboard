@@ -2638,6 +2638,7 @@ function saveData(d) {
   const newHasData = _hasData(d.txs) || _hasData(d.daily_inc) || Object.keys(d.salary_v2||{}).length > 0;
   if (currentHasData && !newHasData && !(d._resetConfirmed)) {
     console.error('saveData BLOCKED: would wipe existing data!', {keys: Object.keys(d)});
+    toast('❌ บันทึกถูกยกเลิก: ข้อมูลใหม่ว่างเปล่า', 'error');
     return;
   }
   // Guard: ป้องกัน pl_snapshot_2026 หาย — ถ้า cache มี snapshot ให้ preserve ไว้เสมอ
@@ -3494,7 +3495,7 @@ function importSalaryExcel(file) {
   if (!file) return;
   if (!window.XLSX) { toast('SheetJS ยังโหลดไม่เสร็จ','error'); return; }
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = async function(e) {
     try {
       const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
       const sh = wb.SheetNames[0];
@@ -3513,10 +3514,12 @@ function importSalaryExcel(file) {
         const p2    = parseFloat(String(r[4]||0).replace(/,/g,''))||0;
         const note  = String(r[5]||'').trim();
         if (!moRaw || !name) continue;
-        // Parse MM/YYYY → YYYY-MM
+        // Parse MM/YYYY → YYYY-MM (รองรับทั้ง พ.ศ. และ ค.ศ.)
         const mp = moRaw.match(/^(\d{1,2})\/(\d{4})$/);
         if (!mp) { skipped++; continue; }
-        const ym = `${mp[2]}-${mp[1].padStart(2,'0')}`;
+        let yr = parseInt(mp[2]);
+        if (yr > 2500) yr -= 543; // แปลง พ.ศ. → ค.ศ.
+        const ym = `${yr}-${mp[1].padStart(2,'0')}`;
         if (!data.salary_v2[ym]) data.salary_v2[ym] = [];
         // Deduplicate by ym+name
         const exists = data.salary_v2[ym].some(e=>e.name===name);
@@ -3529,9 +3532,18 @@ function importSalaryExcel(file) {
         added++;
       }
       if (added > 0) {
-        saveData(data);
-        renderSalary();
-        toast(`✅ Import เงินเดือนสำเร็จ ${added} รายการ${skipped?` (ข้าม ${skipped})`:''}`,'success');
+        // Update cache and await Firestore write directly (ไม่ fire-and-forget)
+        _dbCache = data;
+        _plCache = {};
+        toast('⏳ กำลังบันทึก...', '');
+        try {
+          await _fsSave(data);
+          renderSalary();
+          toast(`✅ Import เงินเดือนสำเร็จ ${added} รายการ${skipped?` (ข้าม ${skipped})`:''}`,'success');
+        } catch(saveErr) {
+          console.error('Salary save failed:', saveErr);
+          toast(`❌ บันทึกไม่สำเร็จ: ${saveErr.message}`,'error');
+        }
       } else {
         toast(`ไม่มีข้อมูลใหม่ (ข้าม ${skipped} รายการซ้ำ)`,'');
       }
