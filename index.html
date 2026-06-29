@@ -2637,7 +2637,7 @@ function saveData(d) {
   if (window.location.protocol === 'file:') {
     localStorage.setItem(SK, JSON.stringify(d));
   } else {
-    _fsSave(d).catch(e => console.error('Firestore write error:', e));
+    _fsSave(d).catch(e => { console.error('Firestore write error:', e); toast('❌ บันทึกไม่สำเร็จ: '+e.message,'error'); });
   }
 }
 
@@ -3354,7 +3354,7 @@ function saveSalaryEntry() {
     p1:   parseFloat(document.getElementById('sal-p1').value)||0,
     p2:   parseFloat(document.getElementById('sal-p2').value)||0,
     note: document.getElementById('sal-note').value.trim(),
-    extras: Object.keys(extras).length ? extras : undefined,
+    ...(Object.keys(extras).length ? {extras} : {}),
   };
   const data = loadData();
   if (!data.salary_v2) data.salary_v2 = {};
@@ -3511,7 +3511,8 @@ function importSalaryExcel(file) {
         if (exists) { skipped++; continue; }
         data.salary_v2[ym].push({
           id: `imp_sal_${Date.now()}_${i}`,
-          name, dept, p1, p2, note: note||undefined,
+          name, dept, p1, p2,
+          ...(note ? {note} : {}),
         });
         added++;
       }
