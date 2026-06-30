@@ -9935,6 +9935,27 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   migrateCategoryNames();
   migrateExpensesToTxs();
+  // ลบ pl_snapshot เดือน 3-5 ปี 2026 ที่ import ผิดพลาด (run once)
+  (function clearBadSnapshots() {
+    const data = loadData();
+    if (!data.pl_snapshot_2026 || data._snap_cleared_v1) return;
+    [3,4,5].forEach(mo => { delete data.pl_snapshot_2026[String(mo)]; });
+    data._snap_cleared_v1 = true;
+    saveData(data);
+  })();
+  // ลบ pl_snapshot_2026 เดือน 3–5 ที่ไม่มีข้อมูลจริง
+  (function clearStaleSnapshots() {
+    const data = loadData();
+    const snap = data.pl_snapshot_2026;
+    if (!snap) return;
+    let changed = false;
+    [3,4,5].forEach(m => { if (snap[String(m)]) { delete snap[String(m)]; changed = true; } });
+    if (changed) {
+      data.pl_snapshot_2026 = snap;
+      saveData(data);
+      console.log('clearStaleSnapshots: ลบ snapshot เดือน 3–5 แล้ว');
+    }
+  })();
   // Fix daily_inc entries ที่ไม่มี id (จาก batch import เก่า)
   (function fixDailyIncIds() {
     const data = loadData();
