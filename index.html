@@ -8003,7 +8003,83 @@ function exportPLExcel() {
 }
 
 function exportPLPDF() {
-  window.print();
+  const year = document.getElementById('pl-year')?.value || '2026';
+  const snap = computePLFromData(year);
+  const MOS = [1,2,3,4,5,6,7,8,9,10,11,12];
+  const g = (key, mo) => snap[mo]?.[key] ?? 0;
+  const arr = key => MOS.map(mo => g(key, mo));
+  const sum = key => arr(key).reduce((a,b)=>a+b,0);
+  const fmt = v => v ? Math.round(v).toLocaleString('th-TH') : '–';
+
+  const sections = [
+    { header: true,  label: 'รายรับ (Revenue)' },
+    { bold: true,    label: 'รายรับรวม',                    key: 'revenue' },
+    { sub: true,     label: 'รายรับ Event',                 key: 'rev_event' },
+    { header: true,  label: 'ต้นทุนขาย (COGS)' },
+    { sub: true,     label: 'ต้นทุนวัตถุดิบ-อาหาร',         key: 'cogs_food' },
+    { sub: true,     label: 'ต้นทุนวัตถุดิบ-เครื่องดื่ม',    key: 'cogs_drink_na' },
+    { sub: true,     label: 'ต้นทุนวัตถุดิบ-แอลกอฮอล์',     key: 'cogs_alc' },
+    { sub: true,     label: 'ต้นทุนบรรจุภัณฑ์',             key: 'cogs_packaging' },
+    { sub: true,     label: 'ต้นทุนแรงงาน-พ่อครัว/แม่ครัว', key: 'cogs_labor_kitchen' },
+    { sub: true,     label: 'ค่าก๊าซหุงต้ม',                key: 'cogs_gas_fuel' },
+    { sub: true,     label: 'ค่าน้ำแข็ง',                   key: 'cogs_ice' },
+    { sub: true,     label: 'ต้นทุนงาน Event',              key: 'cogs_event' },
+    { total: true,   label: 'รวม COGS',                     key: 'cogs_total' },
+    { gp: true,      label: 'กำไรขั้นต้น (Gross Profit)',   key: 'gross_profit' },
+    { header: true,  label: 'ค่าใช้จ่ายดำเนินงาน (Operating Expenses)' },
+    { sub: true,     label: 'เงินเดือนพนักงานบริการ',        key: 'opex_service' },
+    { sub: true,     label: 'ค่าจ้างนักดนตรี',              key: 'opex_musician' },
+    { sub: true,     label: 'ค่าสวัสดิการพนักงาน',          key: 'opex_welfare' },
+    { total: true,   label: 'รวม เงินเดือนและค่าจ้าง',      key: 'opex_staff_total' },
+    { sub: true,     label: 'ค่าแพลตฟอร์ม Delivery',        key: 'opex_delivery_fee' },
+    { sub: true,     label: 'ค่าออกแบบและผลิตสื่อ',         key: 'opex_design' },
+    { sub: true,     label: 'ค่าสินค้าตัวอย่าง',            key: 'opex_sample' },
+    { total: true,   label: 'รวม การตลาด',                  key: 'opex_marketing_total' },
+    { sub: true,     label: 'ค่าโทรศัพท์',                  key: 'opex_phone' },
+    { sub: true,     label: 'ค่าน้ำบาดาล',                  key: 'opex_water' },
+    { sub: true,     label: 'ค่าอินเตอร์เน็ต',              key: 'opex_internet' },
+    { sub: true,     label: 'ค่าไฟฟ้า',                     key: 'opex_electricity' },
+    { total: true,   label: 'รวม สาธารณูปโภค',             key: 'opex_utilities_total' },
+    { sub: true,     label: 'ค่าซ่อมแซม',                   key: 'opex_repair' },
+    { sub: true,     label: 'ค่าใช้จ่ายอื่นๆ',             key: 'opex_other_misc' },
+    { total: true,   label: 'รวม ค่าใช้จ่ายดำเนินงาน',     key: 'opex_total' },
+    { gp: true,      label: 'กำไรสุทธิ (Net Profit)',       key: 'net_profit' },
+  ];
+
+  const colW = '58px';
+  const headerRow = `<tr><th style="text-align:left;padding:6px 8px;background:#1a3a2a;color:#fff;font-size:11px">รายการ</th>${MO_SHORT.map(m=>`<th style="text-align:right;padding:6px 4px;background:#1a3a2a;color:#fff;font-size:11px;width:${colW}">${m}</th>`).join('')}<th style="text-align:right;padding:6px 8px;background:#1a3a2a;color:#fff;font-size:11px;width:70px">รวม</th></tr>`;
+
+  const dataRows = sections.map(s => {
+    if (s.header) return `<tr><td colspan="14" style="background:#e8f5e9;color:#1a5c35;font-weight:700;padding:8px 8px 4px;font-size:11px;border-top:2px solid #1a5c35">${s.label}</td></tr>`;
+    const vals = arr(s.key);
+    const total = sum(s.key);
+    const bg = s.gp ? '#f0fdf4' : s.total ? '#f8f8f8' : '#fff';
+    const fw = (s.bold || s.total || s.gp) ? '700' : '400';
+    const color = s.gp ? '#16a34a' : '#222';
+    const cells = vals.map(v => `<td style="text-align:right;padding:4px 4px;font-size:10.5px;font-weight:${fw};color:${color}">${fmt(v)}</td>`).join('');
+    return `<tr style="background:${bg}"><td style="padding:4px 8px;font-size:10.5px;font-weight:${fw};color:${color};${s.sub?'padding-left:20px':''}">${s.label}</td>${cells}<td style="text-align:right;padding:4px 8px;font-size:10.5px;font-weight:700;color:${color};border-left:1px solid #e5e7eb">${fmt(total)}</td></tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+  <title>P&L Aimaoch ${year}</title>
+  <style>
+    @page { size: A4 landscape; margin: 12mm; }
+    body { font-family: 'Sarabun', sans-serif; margin: 0; color: #222; }
+    h2 { margin: 0 0 4px; font-size: 16px; color: #1a3a2a; }
+    p { margin: 0 0 10px; font-size: 11px; color: #666; }
+    table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+    tr:hover { background: #f9fafb; }
+    td, th { border-bottom: 1px solid #e5e7eb; }
+  </style></head><body>
+  <h2>P&L รายเดือน — เอมโอช</h2>
+  <p>ปี ${year} &nbsp;|&nbsp; ออกรายงาน ${new Date().toLocaleDateString('th-TH')}</p>
+  <table>${headerRow}${dataRows}</table>
+  <script>window.onload=()=>{window.print();}<\/script>
+  </body></html>`;
+
+  const w = window.open('', '_blank', 'width=1100,height=750');
+  w.document.write(html);
+  w.document.close();
 }
 
 // ════════════════════════════════════════════
