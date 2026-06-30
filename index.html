@@ -972,6 +972,10 @@ input[type="date"].form-input { font-family: var(--font-sans); }
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
             <div id="im-tools-menu" style="display:none;position:absolute;right:0;top:calc(100% + 6px);background:var(--surface);border:1px solid var(--border-soft);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.1);min-width:200px;z-index:200;overflow:hidden">
+              <button class="im-dd-item" onclick="buildItemMasterFromBuiltIn();toggleIMDropdown('im-tools-menu')">
+                <span style="font-size:16px">📋</span>
+                <div><div style="font-weight:600">นำเข้ารายการวัตถุดิบทั้งหมด</div><div style="font-size:11px;color:var(--text-muted)">ดึงรายการ+หมวดจากระบบ (ครบทุกรายการ)</div></div>
+              </button>
               <button class="im-dd-item" onclick="buildItemMasterFromPO();toggleIMDropdown('im-tools-menu')">
                 <span style="font-size:16px">⚡</span>
                 <div><div style="font-weight:600">สร้างจากข้อมูลสั่งซื้อ</div><div style="font-size:11px;color:var(--text-muted)">ดึงรายการจาก PO ที่มีอยู่</div></div>
@@ -9384,6 +9388,33 @@ function _backfillIMCodes(data) {
     }
   });
   return changed;
+}
+
+function buildItemMasterFromBuiltIn() {
+  if (!confirm(`นำเข้ารายการวัตถุดิบทั้งหมด ${PO_ITEMS_MASTER.length} รายการจากระบบ?\nรายการที่มีอยู่แล้วจะไม่ถูกเขียนทับ`)) return;
+  const data = loadData();
+  _ensureIM(data);
+  let added = 0, skipped = 0;
+  PO_ITEMS_MASTER.forEach(src => {
+    const name = (src.name||'').trim();
+    if (!name) return;
+    const exists = data.item_master.find(im => im.name === name);
+    if (exists) { skipped++; return; }
+    data.item_master.push({
+      id: 'im_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+      name,
+      cat:  src.cat  || '',
+      unit: src.unit || '',
+      suppliers: src.supplier ? [src.supplier] : [],
+      last_price: 0,
+      avg_price:  0,
+      status: 'active',
+    });
+    added++;
+  });
+  saveData(data);
+  renderItemMaster();
+  toast(`✅ นำเข้าแล้ว ${added} รายการ (ข้ามซ้ำ ${skipped})`,'success');
 }
 
 function buildItemMasterFromPO() {
