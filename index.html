@@ -2801,7 +2801,7 @@ function nav(btn) {
   const [t, s] = PAGE_TITLES[pid] || ['', ''];
   document.getElementById('topbar-title').textContent = t;
   document.getElementById('topbar-sub').textContent = s;
-  const hiddenMonthPages = ['reports','pl','item-master','categories','suppliers','tx-cats','backup','users'];
+  const hiddenMonthPages = ['reports','pl','item-master','categories','suppliers','tx-cats','general-settings','backup','users'];
   document.getElementById('global-month-pill').style.display = hiddenMonthPages.includes(pid) ? 'none' : '';
   if (pid === 'overview') renderOverview();
   if (pid === 'transactions') renderTxTable();
@@ -9965,10 +9965,10 @@ function deleteItemMaster(id) {
 // ════════════════════════════════════════════
 const ROLE_LABELS = { admin:'Admin', manager:'Manager', staff:'Staff' };
 const ROLE_TH = { admin:'ผู้ดูแลระบบ', manager:'ผู้จัดการ', staff:'พนักงาน' };
-const ALL_PAGES = ['overview','transactions','purchasing','inventory','salary','reports','pl','item-master','categories','suppliers','tx-cats','backup','users'];
+const ALL_PAGES = ['overview','transactions','purchasing','inventory','salary','reports','pl','item-master','categories','suppliers','tx-cats','general-settings','backup','users'];
 const ROLE_ACCESS = {
-  admin:   ['overview','transactions','purchasing','inventory','reports','salary','pl','item-master','categories','suppliers','tx-cats','backup','users'],
-  manager: ['overview','transactions','purchasing','inventory','reports','salary','pl','item-master','suppliers'],
+  admin:   ['overview','transactions','purchasing','inventory','reports','salary','pl','item-master','categories','suppliers','tx-cats','general-settings','backup','users'],
+  manager: ['overview','transactions','purchasing','inventory','reports','salary','pl','item-master','suppliers','general-settings'],
   staff:   ['overview','transactions','purchasing','inventory','salary'],
 };
 
