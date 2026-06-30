@@ -1442,15 +1442,18 @@ input[type="date"].form-input { font-family: var(--font-sans); }
     <div id="po-summary-overlay" class="modal-overlay" >
       <div class="modal" style="max-width:620px;width:95vw">
         <div class="modal-head">
-          <div>
-            <div class="modal-title">สรุปออเดอร์แยกSupplier</div>
-            <div style="font-size:12px;color:var(--text-muted);margin-top:2px" id="po-summary-label"></div>
-          </div>
+          <div class="modal-title">สรุปออเดอร์แยกSupplier</div>
           <button class="modal-close" onclick="closePOSummaryModal()">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
-        <div class="modal-body" style="max-height:68vh;overflow-y:auto">
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 20px;border-bottom:1px solid var(--border-soft);flex-wrap:wrap">
+          <label style="font-size:12px;font-weight:600;color:var(--text-muted);white-space:nowrap">วันที่</label>
+          <input type="date" id="po-sum-date" class="form-input" style="font-size:13px;padding:5px 10px;width:150px" onchange="renderPOSummary()">
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('po-sum-date').value='';renderPOSummary()" style="font-size:12px;white-space:nowrap">ทั้งเดือน</button>
+          <div style="margin-left:auto;font-size:12px;color:var(--text-muted)" id="po-summary-label"></div>
+        </div>
+        <div class="modal-body" style="max-height:60vh;overflow-y:auto">
           <div id="po-summary-body"></div>
         </div>
         <div class="modal-foot" style="display:flex;gap:8px">
@@ -6527,6 +6530,7 @@ function updatePOSummaryBar() {
 }
 
 function openPOSummaryModal() {
+  document.getElementById('po-sum-date').value = new Date().toISOString().slice(0,10);
   document.getElementById('po-summary-overlay').classList.add('open');
   renderPOSummary();
 }
@@ -6536,21 +6540,28 @@ function closePOSummaryModal() {
 }
 
 function renderPOSummary() {
+  const selDate = document.getElementById('po-sum-date').value; // YYYY-MM-DD or ''
   const ym = getMonth(); // YYYY-MM or ''
   let from = '', to = '';
-  if (ym) {
+  if (selDate) {
+    from = to = selDate;
+  } else if (ym) {
     const [y, m] = ym.split('-').map(Number);
     const lastDay = new Date(y, m, 0).getDate();
     from = `${ym}-01`;
     to   = `${ym}-${String(lastDay).padStart(2,'0')}`;
   }
   const THAI_MONTHS = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-  const label = ym ? `เดือน ${THAI_MONTHS[parseInt(ym.split('-')[1])]} ${parseInt(ym.split('-')[0])+543}` : 'ทั้งหมด';
+  const label = selDate
+    ? `วันที่ ${selDate} — เฉพาะรายการยังไม่มีราคา`
+    : ym ? `เดือน ${THAI_MONTHS[parseInt(ym.split('-')[1])]} ${parseInt(ym.split('-')[0])+543} — เฉพาะรายการยังไม่มีราคา` : 'ทั้งหมด';
   document.getElementById('po-summary-label').textContent = label;
   const data  = loadData();
 
-  // Include items even with amount=0 (all order items)
-  const allItems = (data.po_items||[]).filter(i => (!from || i.date >= from) && (!to || i.date <= to));
+  // เฉพาะรายการที่ยังไม่มีราคา
+  const allItems = (data.po_items||[]).filter(i =>
+    (!from || i.date >= from) && (!to || i.date <= to) && !(i.unitPrice > 0)
+  );
 
   // Group by supplier
   const bySupplier = {};
@@ -6756,16 +6767,21 @@ function copyOrderSlip() {
 }
 
 function copyPOSummaryText() {
+  const selDate = document.getElementById('po-sum-date').value;
   const ym = getMonth();
   let from = '', to = '';
-  if (ym) {
+  if (selDate) {
+    from = to = selDate;
+  } else if (ym) {
     const [y, m] = ym.split('-').map(Number);
     const lastDay = new Date(y, m, 0).getDate();
     from = `${ym}-01`;
     to   = `${ym}-${String(lastDay).padStart(2,'0')}`;
   }
   const data  = loadData();
-  const allItems = (data.po_items||[]).filter(i => (!from || i.date >= from) && (!to || i.date <= to));
+  const allItems = (data.po_items||[]).filter(i =>
+    (!from || i.date >= from) && (!to || i.date <= to) && !(i.unitPrice > 0)
+  );
 
   const bySupplier = {};
   allItems.forEach(i => {
