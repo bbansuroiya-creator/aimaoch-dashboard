@@ -3991,7 +3991,7 @@ function exportTxExcel() {
   if (!window.XLSX) { toast('SheetJS ยังโหลดไม่เสร็จ','error'); return; }
   const ym = getMonth();
   const data = loadData();
-  const INC_CH_NAMES = {cash:'เงินสด',transfer:'โอนเงิน',delivery:'Delivery',visa:'Visa',mc:'MC',jcb:'JCB',credit:'ค้างชำระ',used:'ยอดใช้'};
+  const INC_CH_NAMES = {cash:'เงินสด',transfer:'โอนเงิน',delivery:'Delivery',visa:'Visa',mc:'MC',jcb:'JCB',credit:'ค้างชำระ',used:'ยอดใช้',event_pay:'Event'};
 
   const rows = [];
 
@@ -4299,7 +4299,7 @@ function renderTxTable() {
   empty.style.display='none';
 
   const STATUS_BADGE = {done:'<span class="badge badge-success">ชำระแล้ว</span>', unpaid:'<span class="badge badge-warning">ค้างชำระ</span>', po:'<span class="badge" style="background:#dbeafe;color:#1d4ed8;font-weight:600">จ่ายแล้ว-จาก PO</span>'};
-  const INC_CH_NAMES = {cash:'เงินสด',transfer:'โอนเงิน',delivery:'Delivery',visa:'Visa',mc:'MC',jcb:'JCB',credit:'ค้างชำระ',used:'ยอดใช้'};
+  const INC_CH_NAMES = {cash:'เงินสด',transfer:'โอนเงิน',delivery:'Delivery',visa:'Visa',mc:'MC',jcb:'JCB',credit:'ค้างชำระ',used:'ยอดใช้',event_pay:'Event'};
 
   body.innerHTML = allRows.map(r=>{
     const d = new Date(r.date);
