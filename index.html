@@ -1072,7 +1072,7 @@ input[type="date"].form-input { font-family: var(--font-sans); }
 
     <!-- ── P&L EVENT EDIT MODAL ── -->
     <!-- ── TAX BREAKDOWN MODAL ── -->
-    <div id="pl-tax-overlay" class="modal-overlay" style="display:none" onclick="if(event.target===this)closePLTaxModal()">
+    <div id="pl-tax-overlay" class="modal-overlay" style="display:none" >
       <div class="modal-box" style="max-width:700px;width:97%">
         <div class="modal-header">
           <span class="modal-title">🧾 กรอกภาษีรายเดือน</span>
@@ -1096,7 +1096,7 @@ input[type="date"].form-input { font-family: var(--font-sans); }
       </div>
     </div>
 
-    <div id="pl-event-overlay" class="modal-overlay" style="display:none" onclick="if(event.target===this)closePLEventModal()">
+    <div id="pl-event-overlay" class="modal-overlay" style="display:none" >
       <div class="modal-box" style="max-width:520px;width:95%">
         <div class="modal-header">
           <span class="modal-title">✏️ แก้ไขรายการ Event ใน P&L</span>
@@ -1246,7 +1246,7 @@ input[type="date"].form-input { font-family: var(--font-sans); }
     </div>
 
     <!-- ── USER MODAL ── -->
-    <div id="user-modal-overlay" class="modal-overlay" onclick="if(event.target===this)closeUserModal()">
+    <div id="user-modal-overlay" class="modal-overlay" >
       <div class="modal" style="max-width:540px;width:95%">
         <div class="modal-header">
           <span class="modal-title" id="um-title">เพิ่มผู้ใช้ใหม่</span>
@@ -1305,7 +1305,7 @@ input[type="date"].form-input { font-family: var(--font-sans); }
     </div>
 
     <!-- ── ITEM MASTER IMPORT MODAL ── -->
-    <div id="im-import-overlay" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeIMImport()">
+    <div id="im-import-overlay" class="modal-overlay" style="display:none" >
       <div class="modal-box" style="max-width:580px;width:95%">
         <div class="modal-header">
           <span class="modal-title">Import Item Master จาก Excel</span>
@@ -1352,7 +1352,7 @@ input[type="date"].form-input { font-family: var(--font-sans); }
     </div>
 
     <!-- ── PURCHASING MODAL ── -->
-    <div id="po-modal-overlay" class="modal-overlay" onclick="if(event.target===this)closePOModal()">
+    <div id="po-modal-overlay" class="modal-overlay" >
       <div class="modal" style="max-width:640px;width:95vw">
         <div class="modal-head">
           <div>
@@ -1404,7 +1404,7 @@ input[type="date"].form-input { font-family: var(--font-sans); }
     </div>
 
     <!-- ── PO SUMMARY MODAL ── -->
-    <div id="po-summary-overlay" class="modal-overlay" onclick="if(event.target===this)closePOSummaryModal()">
+    <div id="po-summary-overlay" class="modal-overlay" >
       <div class="modal" style="max-width:620px;width:95vw">
         <div class="modal-head">
           <div>
@@ -1428,7 +1428,7 @@ input[type="date"].form-input { font-family: var(--font-sans); }
     </div>
 
     <!-- ── PO IMPORT MODAL ── -->
-    <div class="modal-overlay" id="po-import-overlay" onclick="if(event.target===this)closePOImportModal()" style="display:none">
+    <div class="modal-overlay" id="po-import-overlay"  style="display:none">
       <div class="modal" style="max-width:680px;width:95%">
         <div class="modal-header">
           <h2 class="modal-title">Import ข้อมูลจัดซื้อจาก Excel</h2>
@@ -1521,7 +1521,7 @@ input[type="date"].form-input { font-family: var(--font-sans); }
     </div>
 
     <!-- ── PRICE ENTRY MODAL ── -->
-    <div id="price-modal-overlay" class="modal-overlay" onclick="if(event.target===this)closePriceModal()">
+    <div id="price-modal-overlay" class="modal-overlay" >
       <div class="modal" style="max-width:700px;width:95vw">
         <div class="modal-head">
           <div>
@@ -1946,7 +1946,7 @@ input[type="date"].form-input { font-family: var(--font-sans); }
 </div>
 
 <!-- ════════════ ADD TRANSACTION MODAL ════════════ -->
-<div id="modal-overlay" onclick="closeModal(event)">
+<div id="modal-overlay" >
   <div id="modal">
     <div class="modal-head">
       <h2 id="modal-title">เพิ่มรายรับ-รายจ่าย</h2>
@@ -2128,7 +2128,7 @@ input[type="date"].form-input { font-family: var(--font-sans); }
 </div>
 
 <!-- ════════════ SALARY MODAL ════════════ -->
-<div id="salary-modal-overlay" onclick="closeSalaryModal(event)" style="position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:600">
+<div id="salary-modal-overlay"  style="position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:600">
   <div id="salary-modal" style="background:var(--white);border-radius:var(--radius-xl);box-shadow:var(--shadow-md);width:min(500px,calc(100vw - 32px))">
     <div class="modal-head">
       <h2 id="sal-modal-title">เพิ่มพนักงาน</h2>
@@ -2181,7 +2181,7 @@ input[type="date"].form-input { font-family: var(--font-sans); }
 </div>
 
 <!-- ════════════ DEPOSIT MANAGER MODAL ════════════ -->
-<div id="deposit-modal-overlay" onclick="if(event.target===this)closeDepositModal()" style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:center;z-index:700;padding:24px 16px;overflow-y:auto">
+<div id="deposit-modal-overlay"  style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:center;z-index:700;padding:24px 16px;overflow-y:auto">
   <div style="background:var(--white);border-radius:var(--radius-xl);box-shadow:var(--shadow-md);width:min(640px,calc(100vw - 32px));margin:auto">
     <!-- Header -->
     <div class="modal-head">
@@ -2281,7 +2281,7 @@ input[type="date"].form-input { font-family: var(--font-sans); }
 </div>
 
 <!-- ════════════ INVENTORY MODAL ════════════ -->
-<div id="inv-modal-overlay" onclick="closeInvModal(event)" style="position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:500">
+<div id="inv-modal-overlay"  style="position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:500">
   <div id="inv-modal" style="background:var(--white);border-radius:var(--radius-xl);box-shadow:var(--shadow-md);width:min(480px,calc(100vw - 40px))">
     <div class="modal-head">
       <h2>จัดการสต็อก</h2>
@@ -2327,7 +2327,7 @@ input[type="date"].form-input { font-family: var(--font-sans); }
 </div>
 
 <!-- ════════════ USAGE MODAL (บันทึกการใช้) ════════════ -->
-<div id="usage-modal-overlay" onclick="if(event.target===this)closeUsageModal()" style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:center;z-index:700;padding:24px 16px;overflow-y:auto">
+<div id="usage-modal-overlay"  style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:center;z-index:700;padding:24px 16px;overflow-y:auto">
   <div style="background:var(--white);border-radius:var(--radius-xl);box-shadow:var(--shadow-md);width:min(560px,calc(100vw - 32px));margin:auto">
     <div class="modal-head">
       <div>
@@ -2351,7 +2351,7 @@ input[type="date"].form-input { font-family: var(--font-sans); }
 </div>
 
 <!-- ════════════ STOCK COUNT MODAL (ตรวจนับสต็อก) ════════════ -->
-<div id="count-modal-overlay" onclick="if(event.target===this)closeCountModal()" style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:center;z-index:700;padding:24px 16px;overflow-y:auto">
+<div id="count-modal-overlay"  style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:center;z-index:700;padding:24px 16px;overflow-y:auto">
   <div style="background:var(--white);border-radius:var(--radius-xl);box-shadow:var(--shadow-md);width:min(580px,calc(100vw - 32px));margin:auto">
     <div class="modal-head">
       <div>
@@ -2375,7 +2375,7 @@ input[type="date"].form-input { font-family: var(--font-sans); }
 </div>
 
 <!-- ════════════ IMPORT MODAL (นำเข้าจากการซื้อ) ════════════ -->
-<div id="import-modal-overlay" onclick="if(event.target===this)closeImportModal()" style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:center;z-index:700;padding:24px 16px;overflow-y:auto">
+<div id="import-modal-overlay"  style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:center;z-index:700;padding:24px 16px;overflow-y:auto">
   <div style="background:var(--white);border-radius:var(--radius-xl);box-shadow:var(--shadow-md);width:min(620px,calc(100vw - 32px));margin:auto">
     <div class="modal-head">
       <div>
@@ -2399,7 +2399,7 @@ input[type="date"].form-input { font-family: var(--font-sans); }
 </div>
 
 <!-- ── SUPPLIER MODAL ── -->
-<div class="modal-overlay" id="sup-modal-overlay" onclick="if(event.target===this)closeSupModal()" style="display:none">
+<div class="modal-overlay" id="sup-modal-overlay"  style="display:none">
   <div class="modal" style="max-width:440px;width:95%">
     <div class="modal-header">
       <h2 class="modal-title" id="sup-modal-title">เพิ่มSupplier</h2>
@@ -2436,7 +2436,7 @@ input[type="date"].form-input { font-family: var(--font-sans); }
 </div>
 
 <!-- ── CATEGORY MODAL ── -->
-<div class="modal-overlay" id="cat-modal-overlay" onclick="if(event.target===this)closeCatModal()" style="display:none">
+<div class="modal-overlay" id="cat-modal-overlay"  style="display:none">
   <div class="modal" style="max-width:420px;width:95%">
     <div class="modal-header">
       <h2 class="modal-title" id="cat-modal-title">เพิ่มหมวดหมู่</h2>
@@ -2467,7 +2467,7 @@ input[type="date"].form-input { font-family: var(--font-sans); }
 </div>
 
 <!-- ── ITEM MASTER MODAL ── -->
-<div class="modal-overlay" id="im-modal-overlay" onclick="if(event.target===this)closeIMModal()" style="display:none">
+<div class="modal-overlay" id="im-modal-overlay"  style="display:none">
   <div class="modal" style="max-width:500px;width:95%">
     <div class="modal-header">
       <h2 class="modal-title" id="im-modal-title">เพิ่มวัตถุดิบ</h2>
@@ -6288,8 +6288,9 @@ function renderPOInsights(items, ym) {
 let _poRows = [];
 
 function openPOModal() {
-  const today = new Date().toISOString().split('T')[0];
-  document.getElementById('po-date').value = today;
+  const tmr = new Date(); tmr.setDate(tmr.getDate()+1);
+  const tomorrow = tmr.toISOString().split('T')[0];
+  document.getElementById('po-date').value = tomorrow;
   document.getElementById('po-search').value = '';
   document.getElementById('po-search-results').style.display = 'none';
   _poRows = [];
