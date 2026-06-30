@@ -1448,9 +1448,10 @@ input[type="date"].form-input { font-family: var(--font-sans); }
           </button>
         </div>
         <div style="display:flex;align-items:center;gap:8px;padding:10px 20px;border-bottom:1px solid var(--border-soft);flex-wrap:wrap">
-          <label style="font-size:12px;font-weight:600;color:var(--text-muted);white-space:nowrap">วันที่</label>
-          <input type="date" id="po-sum-date" class="form-input" style="font-size:13px;padding:5px 10px;width:150px" onchange="renderPOSummary()">
-          <button class="btn btn-outline btn-sm" onclick="document.getElementById('po-sum-date').value='';renderPOSummary()" style="font-size:12px;white-space:nowrap">ทั้งเดือน</button>
+          <label style="font-size:12px;font-weight:600;color:var(--text-muted);white-space:nowrap">จาก</label>
+          <input type="date" id="po-sum-from" class="form-input" style="font-size:13px;padding:5px 10px;width:150px" onchange="renderPOSummary()">
+          <label style="font-size:12px;font-weight:600;color:var(--text-muted);white-space:nowrap">ถึง</label>
+          <input type="date" id="po-sum-to" class="form-input" style="font-size:13px;padding:5px 10px;width:150px" onchange="renderPOSummary()">
           <div style="margin-left:auto;font-size:12px;color:var(--text-muted)" id="po-summary-label"></div>
         </div>
         <div class="modal-body" style="max-height:60vh;overflow-y:auto">
@@ -2795,7 +2796,7 @@ function nav(btn) {
   const [t, s] = PAGE_TITLES[pid] || ['', ''];
   document.getElementById('topbar-title').textContent = t;
   document.getElementById('topbar-sub').textContent = s;
-  const hiddenMonthPages = ['reports','pl','item-master','categories','suppliers','tx-cats','general-settings','backup','users'];
+  const hiddenMonthPages = ['reports','pl','item-master','categories','suppliers','tx-cats','general-settings','backup','users','purchasing'];
   document.getElementById('global-month-pill').style.display = hiddenMonthPages.includes(pid) ? 'none' : '';
   if (pid === 'overview') renderOverview();
   if (pid === 'transactions') renderTxTable();
@@ -5241,13 +5242,9 @@ function renderPO() {
 }
 
 function _renderPODaily() {
-  const ym = getMonth(); // YYYY-MM จาก globalMonth
   const today = new Date().toISOString().slice(0,10);
   const data = loadData();
-  const items = (data.po_items||[]).filter(i => {
-    if (ym && !i.date.startsWith(ym)) return false;
-    return true;
-  });
+  const items = (data.po_items||[]);
   const emptyEl = document.getElementById('po-empty');
   const bodyEl  = document.getElementById('po-daily-body');
 
@@ -6530,7 +6527,9 @@ function updatePOSummaryBar() {
 }
 
 function openPOSummaryModal() {
-  document.getElementById('po-sum-date').value = new Date().toISOString().slice(0,10);
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('po-sum-from').value = today;
+  document.getElementById('po-sum-to').value   = today;
   document.getElementById('po-summary-overlay').classList.add('open');
   renderPOSummary();
 }
@@ -6540,22 +6539,10 @@ function closePOSummaryModal() {
 }
 
 function renderPOSummary() {
-  const selDate = document.getElementById('po-sum-date').value; // YYYY-MM-DD or ''
-  const ym = getMonth(); // YYYY-MM or ''
-  let from = '', to = '';
-  if (selDate) {
-    from = to = selDate;
-  } else if (ym) {
-    const [y, m] = ym.split('-').map(Number);
-    const lastDay = new Date(y, m, 0).getDate();
-    from = `${ym}-01`;
-    to   = `${ym}-${String(lastDay).padStart(2,'0')}`;
-  }
-  const THAI_MONTHS = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-  const label = selDate
-    ? `วันที่ ${selDate} — เฉพาะรายการยังไม่มีราคา`
-    : ym ? `เดือน ${THAI_MONTHS[parseInt(ym.split('-')[1])]} ${parseInt(ym.split('-')[0])+543} — เฉพาะรายการยังไม่มีราคา` : 'ทั้งหมด';
-  document.getElementById('po-summary-label').textContent = label;
+  const from = document.getElementById('po-sum-from').value;
+  const to   = document.getElementById('po-sum-to').value;
+  const label = from === to ? `วันที่ ${from}` : (from && to ? `${from} – ${to}` : '');
+  document.getElementById('po-summary-label').textContent = label ? label + ' — เฉพาะรายการยังไม่มีราคา' : 'เฉพาะรายการยังไม่มีราคา';
   const data  = loadData();
 
   // เฉพาะรายการที่ยังไม่มีราคา
@@ -6767,17 +6754,8 @@ function copyOrderSlip() {
 }
 
 function copyPOSummaryText() {
-  const selDate = document.getElementById('po-sum-date').value;
-  const ym = getMonth();
-  let from = '', to = '';
-  if (selDate) {
-    from = to = selDate;
-  } else if (ym) {
-    const [y, m] = ym.split('-').map(Number);
-    const lastDay = new Date(y, m, 0).getDate();
-    from = `${ym}-01`;
-    to   = `${ym}-${String(lastDay).padStart(2,'0')}`;
-  }
+  const from = document.getElementById('po-sum-from').value;
+  const to   = document.getElementById('po-sum-to').value;
   const data  = loadData();
   const allItems = (data.po_items||[]).filter(i =>
     (!from || i.date >= from) && (!to || i.date <= to) && !(i.unitPrice > 0)
@@ -6790,8 +6768,7 @@ function copyPOSummaryText() {
     bySupplier[sup].push(i);
   });
 
-  const THAI_MONTHS2 = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-  const copyLabel = ym ? `เดือน ${THAI_MONTHS2[parseInt(ym.split('-')[1])]} ${parseInt(ym.split('-')[0])+543}` : 'ทั้งหมด';
+  const copyLabel = from === to ? from : (from && to ? `${from} – ${to}` : '');
   let text = `📋 ใบสั่งซื้อ ${copyLabel}\n\n`;
   Object.keys(bySupplier).sort().forEach(sup => {
     text += `📦 ${sup}\n`;
