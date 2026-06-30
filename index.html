@@ -10040,6 +10040,7 @@ function pinKey(k) {
       saveData(data);
       document.getElementById('login-overlay').style.display = 'none';
       updateSidebarUser();
+      _resetIdleTimer();
       // navigate to first allowed page
       const userPages = u.pages || ROLE_ACCESS[u.role] || ['overview'];
       const firstPage = userPages[0] || 'overview';
@@ -10060,6 +10061,26 @@ function doLogout() {
   saveData(data);
   showLoginScreen();
 }
+
+// ── Auto logout after 30 min inactivity ──────────────────────────────────────
+const AUTO_LOGOUT_MS = 30 * 60 * 1000;
+let _idleTimer = null;
+
+function _resetIdleTimer() {
+  if (!getCurrentUser()) return; // not logged in, skip
+  clearTimeout(_idleTimer);
+  _idleTimer = setTimeout(() => {
+    const data = loadData();
+    delete data.current_user;
+    saveData(data);
+    showLoginScreen();
+    toast('⏱ ออกจากระบบอัตโนมัติเนื่องจากไม่มีการใช้งาน 30 นาที', 'info');
+  }, AUTO_LOGOUT_MS);
+}
+
+['mousemove','mousedown','keydown','touchstart','scroll'].forEach(ev =>
+  document.addEventListener(ev, _resetIdleTimer, { passive: true })
+);
 
 // ── Users CRUD ──
 function renderUsersPage() {
