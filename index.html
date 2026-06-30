@@ -7988,10 +7988,18 @@ function exportPLExcel() {
     ['กำไรสุทธิ (Net Profit)',...arr('net_profit'),sum('net_profit')],
     ['% Net Margin',...MOS.map(mo=>g('revenue',mo)?(g('net_profit',mo)/g('revenue',mo)*100).toFixed(1)+'%':'—'),''],
   ];
-  const csv = rows.map(r=>r.join('\t')).join('\n');
-  const blob = new Blob(['﻿'+csv],{type:'text/tab-separated-values;charset=utf-8'});
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = `PL_Aimaoch_${year}.xls`; a.click();
+  if (window.XLSX) {
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, `P&L ${year}`);
+    XLSX.writeFile(wb, `PL_Aimaoch_${year}.xlsx`);
+  } else {
+    // fallback: TSV with correct extension
+    const csv = rows.map(r=>r.join('\t')).join('\n');
+    const blob = new Blob(['﻿'+csv],{type:'text/tab-separated-values;charset=utf-8'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `PL_Aimaoch_${year}.tsv`; a.click();
+  }
 }
 
 function exportPLPDF() {
