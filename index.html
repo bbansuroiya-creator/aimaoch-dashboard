@@ -672,6 +672,10 @@ input[type="date"].form-input { font-family: var(--font-sans); }
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 10h16M4 14h8M4 18h8"/><circle cx="18" cy="16" r="3"/><path d="m21 19-1.5-1.5"/></svg>
       หมวดหมู่รายรับ-รายจ่าย
     </button>
+    <button class="sb-link" data-page="general-settings" onclick="nav(this)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      ตั้งค่าทั่วไป
+    </button>
     <button class="sb-link" data-page="backup" onclick="nav(this)">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/><path d="M3 9a9 9 0 0 1 18 0"/></svg>
       Backup / Restore
@@ -1113,6 +1117,40 @@ input[type="date"].form-input { font-family: var(--font-sans); }
           <button class="btn btn-ghost" onclick="closePLEventModal()">ยกเลิก</button>
           <button class="btn btn-primary" onclick="savePLEventData()">✅ บันทึก</button>
         </div>
+      </div>
+    </div>
+
+    <!-- ── PAGE: GENERAL SETTINGS ── -->
+    <div class="page" id="page-general-settings">
+      <div style="max-width:600px;margin:0 auto;display:flex;flex-direction:column;gap:20px">
+
+        <!-- Delivery Fee Rate card -->
+        <div class="card card-pad">
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
+            <div style="width:44px;height:44px;border-radius:12px;background:#fef3c7;display:flex;align-items:center;justify-content:center;font-size:22px">🚚</div>
+            <div>
+              <div style="font-weight:700;font-size:16px;color:var(--text-heading)">อัตราค่าแพลตฟอร์ม Delivery</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:2px">ตั้งค่า % แยกตามวันที่เริ่มต้น — ระบบดึงอัตราที่ถูกต้องให้แต่ละเดือน ไม่ apply ย้อนหลัง</div>
+            </div>
+          </div>
+
+          <!-- Rate list -->
+          <div id="delivery-rate-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
+
+          <!-- Add form -->
+          <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;padding-top:12px;border-top:1px solid var(--ink-100)">
+            <div>
+              <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px">วันที่เริ่มต้น (เดือน)</label>
+              <input type="month" id="dr-new-from" class="form-input" style="width:100%">
+            </div>
+            <div>
+              <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px">อัตรา %</label>
+              <input type="number" id="dr-new-rate" class="form-input" placeholder="32" min="0" max="100" step="0.1" style="width:100%">
+            </div>
+            <button class="btn btn-primary" onclick="addDeliveryRateEntry()" style="white-space:nowrap">+ เพิ่ม</button>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -2774,6 +2812,7 @@ function nav(btn) {
   if (pid === 'suppliers') renderSuppliersPage();
   if (pid === 'tx-cats') renderTxCatsPage();
   if (pid === 'backup') renderBackupInfo();
+  if (pid === 'general-settings') renderDeliveryRateList();
   if (pid === 'users') renderUsersPage();
 }
 
@@ -3208,17 +3247,20 @@ function syncDeliveryFeeTx(data, date, deliveryAmt) {
   const autoId = 'auto-delivery-' + date;
   // Remove old auto tx for this date
   data.txs = data.txs.filter(t => t.id !== autoId);
-  const fee = Math.round(deliveryAmt * DELIVERY_FEE_RATE);
+  const mStr = date.slice(0, 7); // YYYY-MM
+  const rateVal = getDeliveryFeeRate(data, mStr);
+  const ratePct = Math.round(rateVal * 100);
+  const fee = Math.round(deliveryAmt * rateVal);
   if (fee > 0) {
     data.txs.push({
       id: autoId,
       date,
       type: 'expense',
       amount: fee,
-      name: 'ค่าแพลตฟอร์ม Food Delivery (32%)',
+      name: `ค่าแพลตฟอร์ม Food Delivery (${ratePct}%)`,
       cat: 'delivery_fee',
       status: 'done',
-      note: `คำนวณ auto จากยอด Delivery ${baht(deliveryAmt)} × 32%`,
+      note: `คำนวณ auto จากยอด Delivery ${baht(deliveryAmt)} × ${ratePct}%`,
       auto: true,
     });
   }
@@ -3809,7 +3851,18 @@ const INC_CAT_OPTS = [
 
 const ALL_DAILY_ITEMS   = DAILY_CATS.flatMap(g => g.items);
 const ALL_MONTHLY_ITEMS = MONTHLY_CATS.flatMap(g => g.items);
-const DELIVERY_FEE_RATE = 0.32;
+const DELIVERY_FEE_RATE_DEFAULT = 0.32; // fallback if no rates configured
+
+// Returns the applicable delivery fee rate (0–1) for a given month string 'YYYY-MM'
+function getDeliveryFeeRate(data, mStr) {
+  const rates = (data.delivery_fee_rates || []).slice().sort((a,b) => a.from.localeCompare(b.from));
+  let rate = DELIVERY_FEE_RATE_DEFAULT;
+  for (const r of rates) {
+    if (r.from <= mStr) rate = r.rate;
+    else break;
+  }
+  return rate;
+}
 
 // ── P&L Bucket defaults (group-based) ───────────────────────────────────────
 const _BUCKET_DEFAULTS = {};
@@ -7674,7 +7727,7 @@ function computePLFromData(year) {
 
     // Opex – การตลาด
     const opex_materials    = sumCat(c => c === 'ค่าวัสดุสิ้นเปลือง-การขายและบริการ');
-    const opex_delivery_fee = Math.round(dailyInc.reduce((s,e)=>s+(e.delivery||0),0) * DELIVERY_FEE_RATE);
+    const opex_delivery_fee = Math.round(dailyInc.reduce((s,e)=>s+(e.delivery||0),0) * getDeliveryFeeRate(data, mStr));
     const opex_design       = sumCat(c => ['ค่าออกแบบและผลิตสื่อ','ค่าใช้จ่ายอื่นๆ-ค่าสื่อโฆษณา','ค่าสื่อโฆษณาประชาสัมพันธ์'].includes(c));
     const opex_sample       = sumCat(c => ['ค่าใช้จ่ายอื่นๆ-ค่าสินค้าตัวอย่าง','ค่าสินค้าตัวอย่าง (เพื่อโอกาสทางธุรกิจ)'].includes(c));
     const opex_marketing    = sumCat(c => c === 'ค่าส่งเสริมการขาย - ร้านค้า');
@@ -8790,6 +8843,54 @@ function openPLEventModal() {
 function closePLEventModal() {
   document.getElementById('pl-event-overlay').style.display = 'none';
 }
+
+// ── Delivery Fee Rate Settings (inline on page-general-settings) ─────────────
+function renderDeliveryRateList() {
+  const data = loadData();
+  const rates = (data.delivery_fee_rates || []).slice().sort((a,b) => a.from.localeCompare(b.from));
+  const el = document.getElementById('delivery-rate-list');
+  if (!rates.length) {
+    el.innerHTML = `<div style="font-size:13px;color:var(--text-muted);padding:8px 12px;background:var(--ink-50);border-radius:8px">
+      ยังไม่มีการตั้งค่า — ระบบใช้ค่าเริ่มต้น ${Math.round(DELIVERY_FEE_RATE_DEFAULT*100)}%
+    </div>`;
+    return;
+  }
+  el.innerHTML = rates.map((r) => {
+    const pct = Math.round(r.rate * 100 * 10) / 10;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--ink-50);border-radius:8px">
+      <div>
+        <span style="font-weight:600;font-size:14px;color:var(--text-heading)">${pct}%</span>
+        <span style="font-size:12px;color:var(--text-muted);margin-left:10px">เริ่ม ${r.from}</span>
+      </div>
+      <button onclick="deleteDeliveryRateEntry('${r.from}')" style="background:none;border:none;cursor:pointer;color:var(--danger-600);font-size:18px;line-height:1;padding:2px 6px;" title="ลบ">×</button>
+    </div>`;
+  }).join('');
+}
+function addDeliveryRateEntry() {
+  const from = document.getElementById('dr-new-from').value; // YYYY-MM
+  const pct  = parseFloat(document.getElementById('dr-new-rate').value);
+  if (!from) { toast('กรุณาเลือกเดือนที่เริ่มต้น','error'); return; }
+  if (isNaN(pct) || pct <= 0 || pct > 100) { toast('กรุณากรอก % ที่ถูกต้อง (1–100)','error'); return; }
+  const data = loadData();
+  if (!data.delivery_fee_rates) data.delivery_fee_rates = [];
+  data.delivery_fee_rates = data.delivery_fee_rates.filter(r => r.from !== from);
+  data.delivery_fee_rates.push({ from, rate: pct / 100 });
+  saveData(data);
+  _plCache = {};
+  document.getElementById('dr-new-from').value = '';
+  document.getElementById('dr-new-rate').value = '';
+  renderDeliveryRateList();
+  toast(`✅ เพิ่มอัตรา ${pct}% เริ่ม ${from} แล้ว`, 'success');
+}
+function deleteDeliveryRateEntry(from) {
+  const data = loadData();
+  data.delivery_fee_rates = (data.delivery_fee_rates||[]).filter(r => r.from !== from);
+  saveData(data);
+  _plCache = {};
+  renderDeliveryRateList();
+  toast('ลบอัตราแล้ว','success');
+}
+
 function savePLEventData() {
   const data = loadData();
   if (!data.pl_snapshot_2026) data.pl_snapshot_2026 = {};
