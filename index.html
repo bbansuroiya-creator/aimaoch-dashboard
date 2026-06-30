@@ -3767,6 +3767,9 @@ const MONTHLY_CATS = [
   { group: 'ภาษีและประกัน', items: [
     'ประกันร้าน','ภาษีที่ดิน','ภาษี ภงด. 90','ภาษี ภพ 30.',
   ]},
+  { group: 'ต้นทุนงาน Event', items: [
+    'ค่าใช้จ่ายงาน Event',
+  ]},
 ];
 
 const INC_CAT_OPTS = [
@@ -3785,8 +3788,10 @@ DAILY_CATS.forEach((g, gi) => {
   g.items.forEach(item => { _BUCKET_DEFAULTS[item] = bucket; });
 });
 MONTHLY_CATS.forEach((g, gi) => {
-  // ภาษีและประกัน (last group) → tax; others → opex
-  const bucket = (gi === MONTHLY_CATS.length - 1) ? 'tax' : 'opex';
+  // ภาษีและประกัน → tax; ต้นทุนงาน Event → cogs; others → opex
+  const bucket = g.group === 'ภาษีและประกัน' ? 'tax'
+               : g.group === 'ต้นทุนงาน Event' ? 'cogs'
+               : 'opex';
   g.items.forEach(item => { _BUCKET_DEFAULTS[item] = bucket; });
 });
 
@@ -7561,7 +7566,8 @@ function computePLFromData(year) {
       'ค่าใช้จ่ายอื่นๆ','ค่าใช้จ่ายอื่นๆ-วัสดุสิ้นเปลือง','ค่าใช้จ่ายอื่นๆ-ไหว้พระ',
       'ค่าใช้จ่ายอื่นๆ-ค่าของห้องขนม','ค่าใช้จ่ายอื่นๆ-ค่าสื่อโฆษณา',
       'ค่าจ้างบริหาร - การตลาด (CEO)','ค่าจ้างบริหาร - บัญชี','ค่าซ่อมแซม - อาคาร',
-      'ประกันร้าน','ภาษีที่ดิน','ภาษี ภงด. 90','ภาษี ภพ 30.']);
+      'ประกันร้าน','ภาษีที่ดิน','ภาษี ภงด. 90','ภาษี ภพ 30.',
+      'ค่าใช้จ่ายงาน Event']);
     const _countedPfx = c => c.startsWith('ค่าวัตถุดิบ-') || c.startsWith('ค่าเครื่องดื่มแอลกอฮอล์-') || c.startsWith('ค่าขนส่ง');
     const _uncounted = txs.filter(t => { const c=t.cat||''; return !_counted.has(c) && !_countedPfx(c); });
     const extra_cogs = _uncounted.filter(t=>_getBucketLive(t.cat)==='cogs').reduce((s,t)=>s+t.amount,0);
@@ -7585,10 +7591,10 @@ function computePLFromData(year) {
     const cogs_gas_fuel = sumCat(c => c === 'ค่าแก๊ส');
     const cogs_ice      = sumCat(c => c === 'ค่าน้ำแข็ง');
     const cogs_gas      = cogs_gas_fuel + cogs_ice;
-    const cogs_event = 0; // live calc: no event cost category yet
+    const cogs_event    = sumCat(c => c === 'ค่าใช้จ่ายงาน Event');
     const cogs_rent_ice = 0; const cogs_rent_washer = 0; // ย้ายไป OpEx
     const cogs_total = cogs_food + cogs_drink_na + cogs_alc + cogs_packaging
-                     + cogs_labor_kitchen + cogs_gas + extra_cogs;
+                     + cogs_labor_kitchen + cogs_gas + cogs_event + extra_cogs;
     const gross_profit = revenue - cogs_total;
 
     // Opex – พนักงาน
@@ -7805,6 +7811,7 @@ function renderPL() {
       ${subRow('ต้นทุนแรงงาน-พ่อครัว/แม่ครัว','cogs_labor_kitchen')}
       ${subRow('ค่าก๊าซหุงต้ม','cogs_gas_fuel')}
       ${subRow('ค่าน้ำแข็ง','cogs_ice')}
+      ${subRow('ต้นทุนงาน Event','cogs_event')}
       ${totRow('รวม COGS','cogs_total')}
       ${gpRow2('กำไรขั้นต้น (Gross Profit)','gross_profit')}
       ${pctRowFn('Gross Margin %','gross_profit','revenue')}
