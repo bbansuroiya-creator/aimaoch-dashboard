@@ -8571,7 +8571,7 @@ function openPLTaxModal() {
       inp.type = 'number'; inp.min = '0'; inp.placeholder = '0';
       inp.id = `pl-tax-${f}-${mo}`;
       inp.className = 'form-input';
-      inp.style.cssText = 'font-size:12px;padding:5px 8px';
+      inp.style.cssText = 'font-size:12px;padding:5px 8px;background:var(--white);';
       inp.value = s[f] || '';
       grid.appendChild(inp);
     });
