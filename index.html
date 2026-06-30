@@ -7814,7 +7814,6 @@ function renderPL() {
       ${subRow('ค่าจ้างนักดนตรี','opex_musician')}
       ${subRow('ค่าสวัสดิการพนักงาน','opex_welfare')}
       ${totRow('รวม เงินเดือนและค่าจ้าง','opex_staff_total')}
-      ${subRow('ค่าวัสดุสิ้นเปลือง','opex_materials')}
       ${subRow('ค่าแพลตฟอร์ม Delivery','opex_delivery_fee')}
       ${subRow('ค่าออกแบบและผลิตสื่อ','opex_design')}
       ${subRow('ค่าสินค้าตัวอย่าง','opex_sample')}
@@ -7882,7 +7881,6 @@ function exportPLExcel() {
     ['ค่าจ้างนักดนตรี',...arr('opex_musician'),sum('opex_musician')],
     ['ค่าสวัสดิการพนักงาน',...arr('opex_welfare'),sum('opex_welfare')],
     ['รวม เงินเดือนและค่าจ้าง',...arr('opex_staff_total'),sum('opex_staff_total')],
-    ['ค่าวัสดุสิ้นเปลือง',...arr('opex_materials'),sum('opex_materials')],
     ['ค่าแพลตฟอร์ม Delivery',...arr('opex_delivery_fee'),sum('opex_delivery_fee')],
     ['ค่าออกแบบและผลิตสื่อ',...arr('opex_design'),sum('opex_design')],
     ['ค่าสินค้าตัวอย่าง',...arr('opex_sample'),sum('opex_sample')],
