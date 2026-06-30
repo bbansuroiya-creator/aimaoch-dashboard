@@ -7802,6 +7802,7 @@ function renderPL() {
     <tbody>
       ${grp('รายรับ (Revenue)')}
       ${row('รายรับรวม','revenue','','font-weight:600;color:var(--success-700)')}
+      ${subRow('รายรับ Event','rev_event')}
       ${divRow()}
       ${grp('ต้นทุนขาย (COGS)')}
       ${subRow('ต้นทุนวัตถุดิบ-อาหาร','cogs_food')}
@@ -7870,6 +7871,7 @@ function exportPLExcel() {
   const rows = [
     ['รายการ',...MO_SHORT,'รวม'],
     ['รายรับรวม',...arr('revenue'),sum('revenue')],
+    ['รายรับ Event',...arr('rev_event'),sum('rev_event')],
     ['รายได้อื่น - Event',...arr('other_income'),sum('other_income')],[''],
     ['ต้นทุนขาย (COGS)'],
     ['ต้นทุนวัตถุดิบ-อาหาร',...arr('cogs_food'),sum('cogs_food')],
