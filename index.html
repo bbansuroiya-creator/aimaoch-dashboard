@@ -925,18 +925,25 @@ input[type="date"].form-input { font-family: var(--font-sans); }
 
     <!-- ── PAGE: PURCHASING ── -->
     <div class="page" id="page-purchasing">
-      <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-bottom:10px">
-        <button class="btn btn-outline btn-sm" onclick="openPOImportModal()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import Excel
-        </button>
-        <button class="btn btn-primary btn-sm" onclick="openPOModal()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>บันทึกสั่งซื้อ
-        </button>
-      </div>
-      <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
-        <button class="btn btn-outline btn-sm" onclick="openPOSummaryModal()">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>ดูสรุปออเดอร์
-        </button>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+        <!-- Day picker -->
+        <div style="display:flex;align-items:center;gap:6px">
+          <button class="btn btn-outline btn-sm" onclick="_poDayShift(-1)" id="po-day-prev" style="padding:5px 10px">◀</button>
+          <div id="po-day-label" style="font-size:13px;font-weight:600;color:var(--text-heading);min-width:110px;text-align:center;cursor:pointer" onclick="_poDayToggleAll()" title="คลิกเพื่อดูทั้งเดือน/รายวัน"></div>
+          <button class="btn btn-outline btn-sm" onclick="_poDayShift(1)" id="po-day-next" style="padding:5px 10px">▶</button>
+        </div>
+        <!-- Action buttons -->
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline btn-sm" onclick="openPOSummaryModal()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>สรุปออเดอร์
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="openPOImportModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import Excel
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="openPOModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>บันทึกสั่งซื้อ
+          </button>
+        </div>
       </div>
       <div class="card">
         <div class="card-body" style="padding-top:12px">
@@ -2798,7 +2805,7 @@ function nav(btn) {
   document.getElementById('global-month-pill').style.display = hiddenMonthPages.includes(pid) ? 'none' : '';
   if (pid === 'overview') renderOverview();
   if (pid === 'transactions') renderTxTable();
-  if (pid === 'purchasing') renderPO();
+  if (pid === 'purchasing') { _poInitDay(); renderPO(); }
   if (pid === 'inventory') renderInventory();
   if (pid === 'reports') {
     if (_repTab === 'purchase') renderRepPO();
@@ -2822,7 +2829,7 @@ function onMonthChange() {
   if (pid === 'transactions') renderTxTable();
   if (pid === 'salary') renderSalary();
   if (pid === 'reports') renderReports();
-  if (pid === 'purchasing') _renderPODaily();
+  if (pid === 'purchasing') { _poInitDay(); _renderPODaily(); }
 }
 
 // ════════════════════════════════════════════
@@ -5239,10 +5246,70 @@ function renderPO() {
   _renderPODaily();
 }
 
+// ── PO Day picker state ───────────────────────────────────────────────────────
+let _poSelectedDay = null; // 'YYYY-MM-DD' or null = ทั้งเดือน
+
+function _poInitDay() {
+  // set to today if within current month, else null (all month)
+  const ym = getMonth();
+  const today = new Date().toISOString().slice(0,10);
+  _poSelectedDay = (ym && today.startsWith(ym)) ? today : null;
+  _renderPODayLabel();
+}
+
+function _renderPODayLabel() {
+  const lbl = document.getElementById('po-day-label');
+  const prev = document.getElementById('po-day-prev');
+  const next = document.getElementById('po-day-next');
+  if (!lbl) return;
+  if (!_poSelectedDay) {
+    lbl.textContent = '📅 ทั้งเดือน';
+    lbl.style.color = 'var(--primary-600)';
+    if (prev) prev.disabled = true;
+    if (next) next.disabled = true;
+  } else {
+    const d = new Date(_poSelectedDay + 'T00:00:00');
+    const DAYS = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+    lbl.textContent = `${DAYS[d.getDay()]} ${d.getDate()} ${['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'][d.getMonth()+1]}`;
+    lbl.style.color = 'var(--text-heading)';
+    const ym = getMonth();
+    if (prev) prev.disabled = false;
+    if (next) next.disabled = false;
+  }
+}
+
+function _poDayShift(delta) {
+  if (!_poSelectedDay) {
+    // switch from "all month" to first day with data or today
+    const ym = getMonth();
+    const today = new Date().toISOString().slice(0,10);
+    _poSelectedDay = (ym && today.startsWith(ym)) ? today : (ym ? ym + '-01' : today);
+  } else {
+    const d = new Date(_poSelectedDay + 'T00:00:00');
+    d.setDate(d.getDate() + delta);
+    const ym = getMonth();
+    const newDay = d.toISOString().slice(0,10);
+    // stay within selected month
+    if (ym && !newDay.startsWith(ym)) return;
+    _poSelectedDay = newDay;
+  }
+  _renderPODayLabel();
+  _renderPODaily();
+}
+
+function _poDayToggleAll() {
+  _poSelectedDay = _poSelectedDay ? null : new Date().toISOString().slice(0,10);
+  _renderPODayLabel();
+  _renderPODaily();
+}
+
 function _renderPODaily() {
   const ym = getMonth(); // YYYY-MM จาก globalMonth
   const data = loadData();
+  _renderPODayLabel();
+  const filterDate = _poSelectedDay;
   const items = (data.po_items||[]).filter(i => {
+    if (filterDate) return i.date === filterDate;
     if (ym && !i.date.startsWith(ym)) return false;
     return true;
   });
@@ -6522,10 +6589,6 @@ function updatePOSummaryBar() {
 }
 
 function openPOSummaryModal() {
-  // Only init dates if both are empty (first open)
-  const fromEl = document.getElementById('po-sum-from');
-  const toEl   = document.getElementById('po-sum-to');
-  if (!fromEl.value && !toEl.value) _initPOSumDates();
   document.getElementById('po-summary-overlay').classList.add('open');
   renderPOSummary();
 }
@@ -6535,9 +6598,16 @@ function closePOSummaryModal() {
 }
 
 function renderPOSummary() {
-  const from = document.getElementById('po-sum-from').value;
-  const to   = document.getElementById('po-sum-to').value;
-  const label = from === to ? from : (from && to ? `${from} — ${to}` : '');
+  const ym = getMonth(); // YYYY-MM or ''
+  let from = '', to = '';
+  if (ym) {
+    const [y, m] = ym.split('-').map(Number);
+    const lastDay = new Date(y, m, 0).getDate();
+    from = `${ym}-01`;
+    to   = `${ym}-${String(lastDay).padStart(2,'0')}`;
+  }
+  const THAI_MONTHS = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const label = ym ? `เดือน ${THAI_MONTHS[parseInt(ym.split('-')[1])]} ${parseInt(ym.split('-')[0])+543}` : 'ทั้งหมด';
   document.getElementById('po-summary-label').textContent = label;
   const data  = loadData();
 
@@ -6748,8 +6818,14 @@ function copyOrderSlip() {
 }
 
 function copyPOSummaryText() {
-  const from = document.getElementById('po-sum-from').value;
-  const to   = document.getElementById('po-sum-to').value;
+  const ym = getMonth();
+  let from = '', to = '';
+  if (ym) {
+    const [y, m] = ym.split('-').map(Number);
+    const lastDay = new Date(y, m, 0).getDate();
+    from = `${ym}-01`;
+    to   = `${ym}-${String(lastDay).padStart(2,'0')}`;
+  }
   const data  = loadData();
   const allItems = (data.po_items||[]).filter(i => (!from || i.date >= from) && (!to || i.date <= to));
 
@@ -6760,7 +6836,9 @@ function copyPOSummaryText() {
     bySupplier[sup].push(i);
   });
 
-  let text = `📋 ใบสั่งซื้อ ${from}${to && to!==from ? ' — '+to : ''}\n\n`;
+  const THAI_MONTHS2 = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const copyLabel = ym ? `เดือน ${THAI_MONTHS2[parseInt(ym.split('-')[1])]} ${parseInt(ym.split('-')[0])+543}` : 'ทั้งหมด';
+  let text = `📋 ใบสั่งซื้อ ${copyLabel}\n\n`;
   Object.keys(bySupplier).sort().forEach(sup => {
     text += `📦 ${sup}\n`;
     const merged = {};
