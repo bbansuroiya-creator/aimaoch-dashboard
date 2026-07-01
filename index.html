@@ -10102,6 +10102,30 @@ function _resetIdleTimer() {
   document.addEventListener(ev, _resetIdleTimer, { passive: true })
 );
 
+// ── Auto logout on screen hide / lock (30 min away) ──────────────────────────
+let _hiddenAt = null;
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    _hiddenAt = Date.now();
+  } else {
+    if (_hiddenAt && getCurrentUser()) {
+      const awayMs = Date.now() - _hiddenAt;
+      if (awayMs >= AUTO_LOGOUT_MS) {
+        const data = loadData();
+        delete data.current_user;
+        saveData(data);
+        clearTimeout(_idleTimer);
+        showLoginScreen();
+        toast('⏱ ออกจากระบบอัตโนมัติเนื่องจากไม่มีการใช้งาน 30 นาที', 'info');
+      } else {
+        _resetIdleTimer(); // reset idle timer เมื่อกลับมา
+      }
+    }
+    _hiddenAt = null;
+  }
+});
+
 // ── Users CRUD ──
 function renderUsersPage() {
   const users = getUsers();
