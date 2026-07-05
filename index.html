@@ -2710,10 +2710,17 @@ async function _fsSave(d) {
 function loadData() { return _dbCache; }
 let _plCache = {}; // cache computePLFromData — invalidated on saveData
 function saveData(d) {
-  // Guard: ป้องกัน data wipe — ถ้า _dbCache มีข้อมูลอยู่แล้ว ห้าม overwrite ด้วยข้อมูลเปล่า
+  // Guard 1: ห้าม save ก่อน Firestore โหลดข้อมูลครบ
+  if (!_dbReady && !(d._resetConfirmed)) {
+    console.error('saveData BLOCKED: data not fully loaded yet');
+    return;
+  }
+  // Guard 2: ป้องกัน data wipe — ถ้า _dbCache มีข้อมูลอยู่แล้ว ห้าม overwrite ด้วยข้อมูลเปล่า
   const _hasData = arr => Array.isArray(arr) && arr.length > 0;
-  const currentHasData = _hasData(_dbCache.txs) || _hasData(_dbCache.daily_inc) || Object.keys(_dbCache.salary_v2||{}).length > 0;
-  const newHasData = _hasData(d.txs) || _hasData(d.daily_inc) || Object.keys(d.salary_v2||{}).length > 0;
+  const currentHasData = _hasData(_dbCache.txs) || _hasData(_dbCache.daily_inc)
+    || _hasData(_dbCache.po_items) || Object.keys(_dbCache.salary_v2||{}).length > 0;
+  const newHasData = _hasData(d.txs) || _hasData(d.daily_inc)
+    || _hasData(d.po_items) || Object.keys(d.salary_v2||{}).length > 0;
   if (currentHasData && !newHasData && !(d._resetConfirmed)) {
     console.error('saveData BLOCKED: would wipe existing data!', {keys: Object.keys(d)});
     toast('❌ บันทึกถูกยกเลิก: ข้อมูลใหม่ว่างเปล่า', 'error');
@@ -10109,17 +10116,17 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') {
     _hiddenAt = Date.now();
   } else {
-    if (_hiddenAt && getCurrentUser()) {
+    if (_hiddenAt && _dbReady && getCurrentUser()) {
       const awayMs = Date.now() - _hiddenAt;
       if (awayMs >= AUTO_LOGOUT_MS) {
-        const data = loadData();
-        delete data.current_user;
-        saveData(data);
+        // ลบเฉพาะ current_user แล้ว save ผ่าน _fsSave โดยตรง (ไม่ผ่าน saveData)
         clearTimeout(_idleTimer);
+        delete _dbCache.current_user;
+        _fsSave(_dbCache).catch(() => {});
         showLoginScreen();
         toast('⏱ ออกจากระบบอัตโนมัติเนื่องจากไม่มีการใช้งาน 30 นาที', 'info');
       } else {
-        _resetIdleTimer(); // reset idle timer เมื่อกลับมา
+        _resetIdleTimer();
       }
     }
     _hiddenAt = null;
