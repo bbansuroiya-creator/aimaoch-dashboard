@@ -734,6 +734,13 @@ input[type="date"].form-input { font-family: var(--font-sans); }
     </div>
   </header>
 
+  <!-- Backup warning banner -->
+  <div id="backup-banner" style="display:none;background:#fef3c7;border-bottom:2px solid #f59e0b;padding:9px 16px;font-size:13px;color:#78350f;display:none;align-items:center;gap:10px;flex-wrap:wrap">
+    <span style="flex:1;min-width:0">⚠️ <span id="backup-banner-msg"></span></span>
+    <button onclick="nav(document.querySelector('#sidebar .sb-link[data-page=backup]'));document.getElementById('backup-banner').style.display='none'" style="background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap">💾 Backup เดี๋ยวนี้</button>
+    <button onclick="document.getElementById('backup-banner').style.display='none'" style="background:none;border:none;cursor:pointer;color:#92400e;font-size:20px;line-height:1;padding:0 4px">×</button>
+  </div>
+
   <!-- Pages -->
   <main id="main">
 
@@ -2741,6 +2748,25 @@ function saveData(d) {
 
 // localStorage fallback key (kept for migration only)
 const SK = 'aimaoch_v2';
+const BACKUP_LS_KEY = 'aimaoch_lastbackup';
+
+function _checkBackupWarning() {
+  const banner = document.getElementById('backup-banner');
+  if (!banner) return;
+  const last = localStorage.getItem(BACKUP_LS_KEY);
+  if (!last) {
+    document.getElementById('backup-banner-msg').textContent = 'ยังไม่เคย Backup — กรุณา Backup ข้อมูลเพื่อความปลอดภัย';
+    banner.style.display = 'flex';
+    return;
+  }
+  const daysSince = Math.floor((Date.now() - new Date(last).getTime()) / 86400000);
+  if (daysSince >= 7) {
+    document.getElementById('backup-banner-msg').textContent = `Backup ครั้งล่าสุดเมื่อ ${daysSince} วันที่แล้ว — ควร Backup สม่ำเสมอเพื่อป้องกันข้อมูลสูญหาย`;
+    banner.style.display = 'flex';
+  } else {
+    banner.style.display = 'none';
+  }
+}
 
 const MONTHS = ['','มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 const DAY_TH = ['อา','จ','อ','พ','พฤ','ศ','ส'];
@@ -9081,6 +9107,13 @@ function renderBackupInfo() {
   const supCount = (data.im_suppliers||[]).length;
   const salMonths = Object.keys(data.salary_v2||{}).length;
 
+  const lastBackup = localStorage.getItem(BACKUP_LS_KEY);
+  let lastBackupStr = '❌ ยังไม่เคย Backup';
+  if (lastBackup) {
+    const daysAgo = Math.floor((Date.now() - new Date(lastBackup).getTime()) / 86400000);
+    lastBackupStr = daysAgo === 0 ? '✅ วันนี้' : daysAgo === 1 ? '✅ เมื่อวาน' : `${daysAgo >= 7 ? '⚠️' : '✅'} ${daysAgo} วันที่แล้ว (${lastBackup})`;
+  }
+
   document.getElementById('backup-info').innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 20px">
       <div>💳 รายรับ-รายจ่าย: <strong>${txCount} รายการ</strong></div>
@@ -9089,6 +9122,7 @@ function renderBackupInfo() {
       <div>🏢 Supplier: <strong>${supCount} ราย</strong></div>
       <div>💰 เงินเดือน: <strong>${salMonths} เดือน</strong></div>
       <div>📁 ขนาดไฟล์: <strong>${kb} KB</strong></div>
+      <div style="grid-column:1/-1;margin-top:4px;padding-top:8px;border-top:1px solid var(--ink-200)">🕐 Backup ล่าสุด: <strong>${lastBackupStr}</strong></div>
     </div>
   `;
 }
@@ -9105,7 +9139,10 @@ function downloadBackup() {
   a.download = `aimaoch_backup_${stamp}.json`;
   a.click();
   URL.revokeObjectURL(url);
+  localStorage.setItem(BACKUP_LS_KEY, new Date().toISOString().slice(0,10));
+  document.getElementById('backup-banner').style.display = 'none';
   toast('✅ Backup ดาวน์โหลดแล้ว', 'success');
+  renderBackupInfo(); // refresh last backup date display
 }
 
 function handleRestoreFile(file) {
@@ -10068,6 +10105,7 @@ function pinKey(k) {
       document.getElementById('login-overlay').style.display = 'none';
       updateSidebarUser();
       _resetIdleTimer();
+      _checkBackupWarning();
       // navigate to first allowed page
       const userPages = u.pages || ROLE_ACCESS[u.role] || ['overview'];
       const firstPage = userPages[0] || 'overview';
@@ -10326,6 +10364,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     showLoginScreen();
   } else {
     updateSidebarUser();
+    _checkBackupWarning();
     renderOverview();
     renderInventory();
   }
