@@ -9211,11 +9211,17 @@ async function confirmRestore() {
     try {
       await _fsSave(payload);
       toast('✅ Restore สำเร็จ — กำลังโหลดใหม่...', 'success');
+      setTimeout(() => location.reload(), 1500);
     } catch(e) {
       console.error('Restore error:', e);
-      toast('⚠️ บันทึกไม่ครบ: ' + e.message, 'error');
+      // ไม่ reload ถ้า save ล้มเหลว — reload จะโหลดข้อมูลเก่าจาก Firestore แทน
+      _dbCache = _dbCache; // คงค่าเดิม
+      toast('❌ Restore ล้มเหลว: ' + e.message + '\n\nกรุณาลองใหม่', 'error');
+      // คืนปุ่ม restore ให้ลองใหม่
+      document.getElementById('restore-btn').style.display = '';
+      document.getElementById('restore-preview').style.display = '';
+      _restorePayload = payload;
     }
-    setTimeout(() => location.reload(), 1500);
   }
 }
 
@@ -10324,6 +10330,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     _COL.doc('main').onSnapshot(async snap => {
       if (!_dbReady || !snap.exists || _isSaving) return;
       const fresh = await _fsLoad();
+      if (_isSaving) return; // ตรวจอีกครั้งหลัง async load — เผื่อ save เข้ามาระหว่าง load
       _dbCache = fresh;
       renderOverview();
     }, () => {});
