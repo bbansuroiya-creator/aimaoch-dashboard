@@ -2665,6 +2665,8 @@ const _COL = _db.collection('aimaoch');
 // In-memory cache — all code reads/writes go through here
 let _dbCache = {};
 let _dbReady = false;
+let _isSaving = false;       // guard: ป้องกัน onSnapshot overwrite ขณะ save
+let _isSavingTimer = null;
 
 // Split large arrays into separate docs to stay under 1MB Firestore limit
 // po_items is chunked into groups of 3000 to handle large datasets
@@ -2700,6 +2702,9 @@ function _stripUndefined(obj) {
   return obj;
 }
 async function _fsSave(d) {
+  // Mark saving — ป้องกัน onSnapshot ที่ยิงจาก write ของเราเองมา overwrite _dbCache
+  _isSaving = true;
+  clearTimeout(_isSavingTimer);
   const { po_items = [], daily_inc = [], ...rest } = d;
   const safeRest = _stripUndefined(rest);
   const writes = [
@@ -2712,6 +2717,8 @@ async function _fsSave(d) {
     writes.push(_COL.doc(`po_items_${i}`).set({ items: chunk }));
   }
   await Promise.all(writes);
+  // หน่วง 4 วินาทีก่อน allow onSnapshot — เผื่อ Firestore propagate ไม่ทัน
+  _isSavingTimer = setTimeout(() => { _isSaving = false; }, 4000);
 }
 
 function loadData() { return _dbCache; }
@@ -10312,9 +10319,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       toast('⚠️ ไม่สามารถเชื่อมต่อ Cloud — ใช้ข้อมูลในเครื่อง', 'warning');
     }
 
-    // Real-time listener
+    // Real-time listener — ใช้สำหรับ sync จาก device อื่น
+    // ข้าม snapshot ที่เกิดจาก write ของเราเอง (_isSaving = true)
     _COL.doc('main').onSnapshot(async snap => {
-      if (!_dbReady || !snap.exists) return;
+      if (!_dbReady || !snap.exists || _isSaving) return;
       const fresh = await _fsLoad();
       _dbCache = fresh;
       renderOverview();
