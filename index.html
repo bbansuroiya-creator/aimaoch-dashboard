@@ -8455,6 +8455,7 @@ function saveSupplier() {
       if (s.name !== name) {
         (data.item_master||[]).forEach(im => {
           im.suppliers = (im.suppliers||[]).map(n => n===s.name ? name : n);
+          if (im.supplier === s.name) im.supplier = name; // อัปเดต single string ด้วย
         });
       }
       Object.assign(s, payload);
