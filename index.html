@@ -6481,26 +6481,49 @@ function closePOModal() {
   document.getElementById('po-modal-overlay').classList.remove('open');
 }
 
+function _buildPOSearchList() {
+  const data = loadData();
+  // ดึงจาก item_master ก่อน (ข้อมูลที่ user แก้ไขแล้ว)
+  const imItems = (data.item_master || [])
+    .filter(im => im.active !== false)
+    .map(im => {
+      const sups = (im.suppliers && im.suppliers.length) ? im.suppliers : (im.supplier ? [im.supplier] : []);
+      return { name: im.name, cat: im.cat||'', unit: im.unit||'', supplier: sups[0]||'', suppliers: sups };
+    });
+  const imNames = new Set(imItems.map(m => m.name.trim().toLowerCase()));
+  // รายการ hardcoded ที่ไม่มีใน item_master
+  const extra = PO_ITEMS_MASTER
+    .filter(m => !imNames.has(m.name.trim().toLowerCase()))
+    .map(m => ({ ...m, suppliers: m.supplier ? [m.supplier] : [] }));
+  return [...imItems, ...extra];
+}
+
 function filterPOItems() {
   const q = document.getElementById('po-search').value.trim().toLowerCase();
   const res = document.getElementById('po-search-results');
   if (!q) { res.style.display='none'; return; }
-  const matches = PO_ITEMS_MASTER.filter(m =>
-    m.name.toLowerCase().includes(q) || m.supplier.toLowerCase().includes(q) || m.cat.toLowerCase().includes(q)
+  const list = _buildPOSearchList();
+  const matches = list.filter(m =>
+    m.name.toLowerCase().includes(q) ||
+    (m.suppliers||[]).some(s => s.toLowerCase().includes(q)) ||
+    (m.cat||'').toLowerCase().includes(q)
   ).slice(0,15);
   if (!matches.length) { res.innerHTML='<div style="padding:10px 12px;font-size:13px;color:var(--text-faint)">ไม่พบรายการ</div>'; res.style.display=''; return; }
-  res.innerHTML = matches.map(m=>`<div onclick='selectPOItem(${JSON.stringify(m)})' style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border-soft);display:flex;justify-content:space-between;align-items:center" onmouseover="this.style.background='var(--ink-50)'" onmouseout="this.style.background=''">
-    <div>
-      <span style="font-weight:500">${m.name}</span>
-      <span style="font-size:11px;color:var(--text-muted);margin-left:6px">${m.unit}</span>
-    </div>
-    <span style="font-size:11px;color:var(--text-faint)">${m.supplier||'–'} · ${m.cat}</span>
-  </div>`).join('');
+  res.innerHTML = matches.map(m=>{
+    const supLabel = m.suppliers.length > 1 ? `${m.suppliers.length} ซัพ` : (m.supplier||'–');
+    return `<div onclick='selectPOItem(${JSON.stringify(m)})' style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border-soft);display:flex;justify-content:space-between;align-items:center" onmouseover="this.style.background='var(--ink-50)'" onmouseout="this.style.background=''">
+      <div>
+        <span style="font-weight:500">${m.name}</span>
+        <span style="font-size:11px;color:var(--text-muted);margin-left:6px">${m.unit}</span>
+      </div>
+      <span style="font-size:11px;color:var(--text-faint)">${supLabel} · ${m.cat}</span>
+    </div>`;
+  }).join('');
   res.style.display = '';
 }
 
 function selectPOItem(m) {
-  _poRows.push({ id: Date.now().toString()+Math.random(), name:m.name, cat:m.cat, supplier:m.supplier, unit:m.unit, qty:'' });
+  _poRows.push({ id: Date.now().toString()+Math.random(), name:m.name, cat:m.cat, supplier:m.supplier||'', suppliers:m.suppliers||[], unit:m.unit, qty:'' });
   renderPORows();
   document.getElementById('po-search').value = '';
   document.getElementById('po-search-results').style.display = 'none';
@@ -6533,7 +6556,12 @@ function renderPORows() {
         <div style="font-size:13px;font-weight:500">${r.name || `<input class="form-input" style="font-size:12px;padding:3px 6px;width:100%" value="" oninput="_poRows[${i}].name=this.value" placeholder="ชื่อสินค้า">`}</div>
         ${r.name ? `<div style="font-size:11px;color:var(--text-faint)">${r.cat||''}</div>` : ''}
       </div>
-      <input class="form-input" style="font-size:12px;padding:3px 6px" value="${(r.supplier||'').replace(/"/g,'&quot;')}" oninput="_poRows[${i}].supplier=this.value" placeholder="Supplier">
+      ${(r.suppliers && r.suppliers.length > 1)
+        ? `<select class="form-input" style="font-size:12px;padding:3px 6px" onchange="_poRows[${i}].supplier=this.value">
+            ${r.suppliers.map(s=>`<option value="${s.replace(/"/g,'&quot;')}" ${s===r.supplier?'selected':''}>${s}</option>`).join('')}
+           </select>`
+        : `<input class="form-input" style="font-size:12px;padding:3px 6px" value="${(r.supplier||'').replace(/"/g,'&quot;')}" oninput="_poRows[${i}].supplier=this.value" placeholder="Supplier">`
+      }
       <input class="form-input" style="font-size:13px;padding:3px 6px;text-align:center;font-weight:600" type="number" min="0" step="any" value="${r.qty}" oninput="_poRows[${i}].qty=this.value" placeholder="0">
       <input class="form-input" style="font-size:12px;padding:3px 6px;text-align:center" value="${(r.unit||'').replace(/"/g,'&quot;')}" oninput="_poRows[${i}].unit=this.value" placeholder="หน่วย">
       <button style="background:none;border:none;cursor:pointer;color:var(--text-faint);font-size:18px;line-height:1;padding:0" onclick="_poRows.splice(${i},1);renderPORows()">×</button>
