@@ -10,6 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <style>
 :root {
   /* Brand */
@@ -2660,7 +2661,19 @@ const _fbApp = firebase.initializeApp({
   appId: "1:399660520623:web:abe97679e932a86dda305a"
 });
 const _db = firebase.firestore(_fbApp);
+const _auth = firebase.auth(_fbApp);
 const _COL = _db.collection('aimaoch');
+
+// ล็อกอิน Firebase แบบ anonymous เบื้องหลัง (ผู้ใช้ยังใช้ PIN เหมือนเดิม)
+// ทำให้ request.auth != null → ใช้ security rules แบบไม่มีวันหมดอายุได้
+async function _ensureAuth() {
+  if (_auth.currentUser) return;
+  try {
+    await _auth.signInAnonymously();
+  } catch (e) {
+    console.error('Firebase anonymous auth error:', e);
+  }
+}
 
 // In-memory cache — all code reads/writes go through here
 let _dbCache = {};
@@ -2701,22 +2714,58 @@ function _stripUndefined(obj) {
   }
   return obj;
 }
-async function _fsSave(d) {
+async function _fsSave(d, opts = {}) {
+  const { force = false } = opts;   // force = ข้าม guard (ใช้ตอน restore/purge ที่ตั้งใจ)
   // Mark saving — ป้องกัน onSnapshot ที่ยิงจาก write ของเราเองมา overwrite _dbCache
   _isSaving = true;
   clearTimeout(_isSavingTimer);
-  const { po_items = [], daily_inc = [], ...rest } = d;
+
+  // ─────────────────────────────────────────────────────────────
+  // GUARD: กันเครื่องที่ข้อมูลไม่ครบมาเขียนทับข้อมูลที่ครบกว่าใน cloud
+  // อ่านจำนวนรายการปัจจุบันใน cloud ก่อน ถ้าข้อมูลใหม่หด >50% ให้หยุด
+  // (ยกเว้นสั่ง force เช่น restore / purge ที่ผู้ใช้ตั้งใจลบเอง)
+  // ─────────────────────────────────────────────────────────────
+  if (!force) {
+    try {
+      const cloud = await _fsLoad();
+      const _n = a => Array.isArray(a) ? a.length : 0;
+      const checks = [
+        ['รายรับ-รายจ่าย', _n(d.txs),       _n(cloud.txs)],
+        ['จัดซื้อ PO',      _n(d.po_items),  _n(cloud.po_items)],
+        ['รายรับรายวัน',    _n(d.daily_inc), _n(cloud.daily_inc)],
+      ];
+      // บล็อกเมื่อ cloud มีข้อมูลพอสมควร (>=20) แล้วของใหม่เหลือ < ครึ่งหนึ่ง
+      const shrink = checks.find(([, nw, old]) => old >= 20 && nw < old * 0.5);
+      if (shrink) {
+        _isSaving = false;
+        const [label, nw, old] = shrink;
+        const err = new Error(`ยกเลิกบันทึก: "${label}" จะลดจาก ${old} เหลือ ${nw} รายการ — ข้อมูลในเครื่องนี้อาจไม่ใช่ล่าสุด กรุณารีเฟรชหน้า (F5) เพื่อดึงข้อมูลล่าสุดก่อน แล้วลองใหม่`);
+        err.code = 'GUARD_BLOCK';
+        throw err;
+      }
+    } catch (e) {
+      if (e.code === 'GUARD_BLOCK') throw e;        // guard บล็อกจริง — ส่งต่อให้ผู้เรียกแจ้งเตือน
+      console.warn('Guard: อ่าน cloud ไม่สำเร็จ ข้ามการตรวจ (กัน false positive)', e);
+    }
+  }
+
+  // strip control flags ไม่ให้ปนขึ้น cloud
+  const { po_items = [], daily_inc = [], _forceWrite, _resetConfirmed, ...rest } = d;
   const safeRest = _stripUndefined(rest);
-  const writes = [
-    _COL.doc('main').set(safeRest),
-    _COL.doc('daily_inc').set({ items: _stripUndefined(daily_inc) }),
-  ];
-  // Chunk po_items into multiple docs
+
+  // ─────────────────────────────────────────────────────────────
+  // เขียนทุก doc เป็น batch เดียว — all-or-nothing (กัน torn write)
+  // ถ้าพลาดกลางคัน = ไม่มี doc ไหนถูกเขียนเลย ไม่เกิดสภาพครึ่งๆ กลางๆ
+  // ─────────────────────────────────────────────────────────────
+  const batch = _db.batch();
+  batch.set(_COL.doc('main'), safeRest);
+  batch.set(_COL.doc('daily_inc'), { items: _stripUndefined(daily_inc) });
   for (let i = 0; i < _PO_MAX_CHUNKS; i++) {
     const chunk = _stripUndefined(po_items.slice(i * _PO_CHUNK, (i + 1) * _PO_CHUNK));
-    writes.push(_COL.doc(`po_items_${i}`).set({ items: chunk }));
+    batch.set(_COL.doc(`po_items_${i}`), { items: chunk });
   }
-  await Promise.all(writes);
+  await batch.commit();
+
   // หน่วง 4 วินาทีก่อน allow onSnapshot — เผื่อ Firestore propagate ไม่ทัน
   _isSavingTimer = setTimeout(() => { _isSaving = false; }, 4000);
 }
@@ -2749,7 +2798,12 @@ function saveData(d) {
   if (window.location.protocol === 'file:') {
     localStorage.setItem(SK, JSON.stringify(d));
   } else {
-    _fsSave(d).catch(e => { console.error('Firestore write error:', e); toast('❌ บันทึกไม่สำเร็จ: '+e.message,'error'); });
+    const _force = !!(d._resetConfirmed || d._forceWrite);   // ลบ/รีเซ็ต/purge ที่ตั้งใจ = ข้าม guard
+    _fsSave(d, { force: _force }).catch(e => {
+      console.error('Firestore write error:', e);
+      if (e.code === 'GUARD_BLOCK') toast('⛔ ' + e.message, 'error');
+      else toast('❌ บันทึกไม่สำเร็จ: ' + e.message, 'error');
+    });
   }
 }
 
@@ -9073,6 +9127,7 @@ function purgeYear() {
     Object.keys(data.salary_v2).filter(k=>k.startsWith(year)).forEach(k=>delete data.salary_v2[k]);
   }
   delete data[`pl_snapshot_${year}`];
+  data._forceWrite = true;   // ตั้งใจลบทั้งปี — ข้าม guard กันเขียนทับ
   saveData(data);
   toast(`✅ ลบข้อมูลปี ${year} เรียบร้อยแล้ว`, 'success');
   renderPurgeYearSel();
@@ -9115,7 +9170,7 @@ async function purgeOldPO() {
   document.getElementById('purge-po-preview').innerHTML = '⏳ กำลังบันทึก...';
   document.getElementById('purge-po-btn').style.display = 'none';
   if (window.location.protocol !== 'file:') {
-    try { await _fsSave(data); } catch(e) { toast('⚠️ บันทึกไม่สำเร็จ: ' + e.message, 'error'); return; }
+    try { await _fsSave(data, { force: true }); } catch(e) { toast('⚠️ บันทึกไม่สำเร็จ: ' + e.message, 'error'); return; }
   }
   _dbCache = data;
   if (window.location.protocol === 'file:') localStorage.setItem(SK, JSON.stringify(data));
@@ -9238,7 +9293,7 @@ async function confirmRestore() {
   } else {
     toast('⏳ กำลังบันทึกข้อมูลขึ้น Cloud กรุณารอสักครู่...', '');
     try {
-      await _fsSave(payload);
+      await _fsSave(payload, { force: true });   // restore = ตั้งใจแทนที่ทั้งหมด ข้าม guard
       toast('✅ Restore สำเร็จ — กำลังโหลดใหม่...', 'success');
       setTimeout(() => location.reload(), 1500);
     } catch(e) {
@@ -10335,6 +10390,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try { _dbCache = JSON.parse(localStorage.getItem(SK)) || {}; } catch {}
   } else {
     // Hosted version — use Firestore
+    await _ensureAuth();   // ต้องล็อกอิน anonymous ก่อน ไม่งั้น Firestore rules จะปฏิเสธ
     try {
       const fsData = await _fsLoad();
       if (Object.keys(fsData).length > 0) {
