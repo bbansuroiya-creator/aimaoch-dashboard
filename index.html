@@ -904,6 +904,14 @@ input[type="date"].form-input { font-family: var(--font-sans); }
               </button>
             </div>
           </div>
+          <div id="tx-daterange" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--ink-100)">
+            <span style="font-size:12.5px;color:var(--text-muted);font-weight:600">📅 กรองช่วงวันที่:</span>
+            <input type="date" id="tx-date-from" class="form-input" style="width:150px;font-size:13px" onchange="renderTxTable()">
+            <span style="color:var(--text-muted);font-size:13px">ถึง</span>
+            <input type="date" id="tx-date-to" class="form-input" style="width:150px;font-size:13px" onchange="renderTxTable()">
+            <button class="btn btn-ghost btn-sm" onclick="clearTxDateRange()" style="font-size:12px">ล้าง</button>
+            <span id="tx-daterange-note" style="font-size:12px;color:var(--primary-700);font-weight:600"></span>
+          </div>
         </div>
         <div class="card-body">
           <div class="tbl-wrap">
@@ -4438,12 +4446,36 @@ function importTxExcel(file) {
   reader.readAsArrayBuffer(file);
 }
 
+function clearTxDateRange() {
+  const f = document.getElementById('tx-date-from');
+  const t = document.getElementById('tx-date-to');
+  if (f) f.value = '';
+  if (t) t.value = '';
+  renderTxTable();
+}
+
 function renderTxTable() {
   const ym = getMonth();
   const data = loadData();
-  const expenses = (data.txs||[]).filter(t=>t.date.startsWith(ym) && t.type==='expense');
-  const legacyInc= (data.txs||[]).filter(t=>t.date.startsWith(ym) && t.type==='income');
-  const dailyInc = (data.daily_inc||[]).filter(e=>e.date.startsWith(ym));
+  // ── ตัวกรองช่วงวันที่ (อิสระจาก global month) ──
+  // ถ้าตั้งช่วงวันที่ไว้ → ค้นข้ามทุกเดือน/ปี ไม่สน global month
+  const _dFrom = document.getElementById('tx-date-from')?.value || '';
+  const _dTo   = document.getElementById('tx-date-to')?.value || '';
+  const _rangeActive = !!(_dFrom || _dTo);
+  const _matchDate = d => {
+    const k = String(d||'').slice(0,10);
+    if (_rangeActive) {
+      if (_dFrom && k < _dFrom) return false;
+      if (_dTo && k > _dTo) return false;
+      return true;
+    }
+    return k.startsWith(ym);
+  };
+  const _note = document.getElementById('tx-daterange-note');
+  if (_note) _note.textContent = _rangeActive ? '🔍 กำลังกรองตามช่วงวันที่ (ข้ามตัวเลือกเดือนด้านบน)' : '';
+  const expenses = (data.txs||[]).filter(t=>_matchDate(t.date) && t.type==='expense');
+  const legacyInc= (data.txs||[]).filter(t=>_matchDate(t.date) && t.type==='income');
+  const dailyInc = (data.daily_inc||[]).filter(e=>_matchDate(e.date));
   const search = document.getElementById('tx-search')?.value.toLowerCase()||'';
   const unpaid = expenses.filter(t=>t.status==='unpaid');
 
