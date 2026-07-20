@@ -2674,7 +2674,15 @@ const _COL = _db.collection('aimaoch');
 
 // ล็อกอิน Firebase แบบ anonymous เบื้องหลัง (ผู้ใช้ยังใช้ PIN เหมือนเดิม)
 // ทำให้ request.auth != null → ใช้ security rules แบบไม่มีวันหมดอายุได้
+let _authReadyPromise = null;
 async function _ensureAuth() {
+  // รอ auth state ครั้งแรกให้ settle ก่อน (persistence อาจกำลัง restore anonymous user เดิม)
+  if (!_authReadyPromise) {
+    _authReadyPromise = new Promise(resolve => {
+      const unsub = _auth.onAuthStateChanged(() => { unsub(); resolve(); });
+    });
+  }
+  await _authReadyPromise;
   if (_auth.currentUser) return;
   try {
     await _auth.signInAnonymously();
@@ -2728,6 +2736,16 @@ async function _fsSave(d, opts = {}) {
   _isSaving = true;
   clearTimeout(_isSavingTimer);
 
+  // ── ต้องมี auth ก่อนเขียน (rules ใหม่ต้องการ request.auth != null) ──
+  // ถ้า auth หลุด → พยายาม re-login ก่อน ถ้ายังไม่ได้ → โยน error (ไม่เขียนแบบเงียบๆ)
+  await _ensureAuth();
+  if (!_auth.currentUser) {
+    _isSaving = false;
+    const err = new Error('เชื่อมต่อระบบยืนยันตัวตนไม่สำเร็จ — ข้อมูลยังไม่ถูกบันทึก กรุณาเช็คอินเทอร์เน็ตแล้วลองใหม่');
+    err.code = 'AUTH_FAILED';
+    throw err;
+  }
+
   // ─────────────────────────────────────────────────────────────
   // GUARD: กันเครื่องที่ข้อมูลไม่ครบมาเขียนทับข้อมูลที่ครบกว่าใน cloud
   // อ่านจำนวนรายการปัจจุบันใน cloud ก่อน ถ้าข้อมูลใหม่หด >50% ให้หยุด
@@ -2773,6 +2791,8 @@ async function _fsSave(d, opts = {}) {
     batch.set(_COL.doc(`po_items_${i}`), { items: chunk });
   }
   await batch.commit();
+  // เขียน cloud สำเร็จ — เคลียร์ธง "ค้างยังไม่ขึ้น cloud"
+  try { localStorage.removeItem(SK + '_dirty'); } catch {}
 
   // หน่วง 4 วินาทีก่อน allow onSnapshot — เผื่อ Firestore propagate ไม่ทัน
   _isSavingTimer = setTimeout(() => { _isSaving = false; }, 4000);
@@ -2806,13 +2826,47 @@ function saveData(d) {
   if (window.location.protocol === 'file:') {
     localStorage.setItem(SK, JSON.stringify(d));
   } else {
+    // ── safety net: เก็บสำเนาลงเครื่อง + ตั้งธง "ยังไม่ยืนยันว่าขึ้น cloud" ก่อนเขียน ──
+    // ถ้า cloud เขียนไม่สำเร็จ (หรือแท็บปิดกลางคัน) ธงนี้จะค้าง → เปิดมาครั้งหน้าจะกู้ข้อมูลให้อัตโนมัติ
+    try { localStorage.setItem(SK, JSON.stringify(d)); localStorage.setItem(SK + '_dirty', '1'); } catch {}
     const _force = !!(d._resetConfirmed || d._forceWrite);   // ลบ/รีเซ็ต/purge ที่ตั้งใจ = ข้าม guard
-    _fsSave(d, { force: _force }).catch(e => {
+    _fsSave(d, { force: _force }).then(() => {
+      _hideSaveError();   // เขียนสำเร็จ — ซ่อนแถบเตือน (ถ้าเคยขึ้น)
+    }).catch(e => {
       console.error('Firestore write error:', e);
-      if (e.code === 'GUARD_BLOCK') toast('⛔ ' + e.message, 'error');
-      else toast('❌ บันทึกไม่สำเร็จ: ' + e.message, 'error');
+      if (e.code === 'GUARD_BLOCK') { try { localStorage.removeItem(SK + '_dirty'); } catch {} toast('⛔ ' + e.message, 'error'); return; }
+      // เขียน cloud ไม่สำเร็จ — ข้อมูลอยู่ในเครื่องแล้ว (ธง dirty ยังค้าง) เตือนดังๆ ค้างจอ
+      _showSaveError(e.message || 'บันทึกขึ้น Cloud ไม่สำเร็จ');
     });
   }
+}
+
+// ── แถบเตือนค้างจอเมื่อบันทึกขึ้น Cloud ไม่สำเร็จ (ไม่ให้ข้อมูลหายเงียบ) ──
+function _showSaveError(msg) {
+  let el = document.getElementById('save-error-bar');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'save-error-bar';
+    el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#dc2626;color:#fff;padding:12px 18px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:14px;box-shadow:0 2px 12px rgba(0,0,0,.25);flex-wrap:wrap;text-align:center';
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `⚠️ บันทึกขึ้น Cloud ไม่สำเร็จ: ${msg} — ข้อมูลถูกเก็บไว้ในเครื่องแล้ว <b>อย่าปิดหน้านี้</b> `
+    + `<button onclick="_retrySave()" style="background:#fff;color:#dc2626;border:none;border-radius:6px;padding:6px 14px;font-weight:700;cursor:pointer">🔄 ลองบันทึกใหม่</button>`;
+  el.style.display = 'flex';
+}
+function _hideSaveError() {
+  const el = document.getElementById('save-error-bar');
+  if (el) el.style.display = 'none';
+}
+function _retrySave() {
+  _hideSaveError();
+  toast('⏳ กำลังลองบันทึกใหม่...', '');
+  _fsSave(_dbCache).then(() => {
+    toast('✅ บันทึกขึ้น Cloud สำเร็จแล้ว', 'success');
+  }).catch(e => {
+    if (e.code === 'GUARD_BLOCK') { toast('⛔ ' + e.message, 'error'); return; }
+    _showSaveError(e.message || 'ยังบันทึกไม่สำเร็จ');
+  });
 }
 
 // localStorage fallback key (kept for migration only)
@@ -10425,11 +10479,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     await _ensureAuth();   // ต้องล็อกอิน anonymous ก่อน ไม่งั้น Firestore rules จะปฏิเสธ
     try {
       const fsData = await _fsLoad();
-      if (Object.keys(fsData).length > 0) {
+      const _dirty = localStorage.getItem(SK + '_dirty');
+      const _lsRaw = localStorage.getItem(SK);
+      if (_dirty && _lsRaw) {
+        // ── กู้ข้อมูลที่เขียน cloud ไม่สำเร็จค้างอยู่ในเครื่องจากครั้งก่อน ──
+        try {
+          _dbCache = JSON.parse(_lsRaw);
+          toast('♻️ พบข้อมูลที่ยังไม่ได้บันทึกขึ้น Cloud จากครั้งก่อน — กำลังบันทึกให้อัตโนมัติ...', 'warning');
+          _fsSave(_dbCache)
+            .then(() => toast('✅ บันทึกข้อมูลที่ค้างขึ้น Cloud สำเร็จแล้ว', 'success'))
+            .catch(() => _showSaveError('ยังบันทึกข้อมูลที่ค้างไม่สำเร็จ'));
+        } catch {
+          _dbCache = Object.keys(fsData).length > 0 ? fsData : {};
+        }
+      } else if (Object.keys(fsData).length > 0) {
         _dbCache = fsData;
       } else {
         // Firestore empty — migrate from localStorage if available
-        const lsRaw = localStorage.getItem(SK);
+        const lsRaw = _lsRaw;
         if (lsRaw) {
           _dbCache = JSON.parse(lsRaw);
           await _fsSave(_dbCache);
