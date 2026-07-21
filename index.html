@@ -10492,6 +10492,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     Chart.defaults.animation = false;
     Chart.defaults.transitions = {};
   }
+
+  // ── แก้บั๊กแกน Y กราฟถูกตัดบน iOS (ฟอนต์ Google โหลดช้า → Chart.js จองความกว้างแกนแคบไว้ก่อน) ──
+  // ชั้นที่ 1: บังคับความกว้างแกน Y ฝั่งซ้ายขั้นต่ำ ให้ตัวเลขมีที่พอเสมอ
+  Chart.defaults.scales.linear.afterFit = function(s) {
+    if (s.position === 'left') s.width = Math.max(s.width, 54);
+  };
+  // ชั้นที่ 2: พอฟอนต์โหลดเสร็จ (หรือหลัง 1.5 วิ) สั่งทุกกราฟวัด/วาดใหม่
+  function _refitAllCharts() {
+    try { Object.values(Chart.instances || {}).forEach(ch => { try { ch.resize(); ch.update('none'); } catch (e) {} }); } catch (e) {}
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => setTimeout(_refitAllCharts, 60));
+  setTimeout(_refitAllCharts, 1500);
+
   const _IS_LOCAL = window.location.protocol === 'file:';
 
   document.body.style.opacity = '0.4';
