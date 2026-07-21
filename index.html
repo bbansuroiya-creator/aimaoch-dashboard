@@ -4857,7 +4857,7 @@ function renderOverview() {
       plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>' '+baht(c.raw)}}},
       scales:{
         x:{grid:{display:false}, ticks:{color:'#9ca3af',font:{size:10},maxTicksLimit:ovMode==='day'?10:12}},
-        y:{grid:{color:'#f1f3f5'}, ticks:{color:'#9ca3af',font:{size:10},callback:_axisBaht}},
+        y:{afterFit:sc=>{sc.width=Math.max(sc.width||0,64);},grid:{color:'#f1f3f5'}, ticks:{color:'#9ca3af',font:{size:10},callback:_axisBaht}},
       }
     }
   });
@@ -6299,7 +6299,7 @@ function renderRepPO() {
       options: {
         responsive: true, maintainAspectRatio: true,
         plugins: { legend:{display:false}, tooltip:{ callbacks:{ label: c => hasPrice ? ' ฿'+c.raw.toFixed(0) : ' '+c.raw+' รายการ' } } },
-        scales: { y:{ ticks:{ callback: v => hasPrice ? _axisBaht(v) : v }, beginAtZero:true }, x:{ ticks:{font:{size:10}} } }
+        scales: { y:{afterFit:sc=>{sc.width=Math.max(sc.width||0,64);}, ticks:{ callback: v => hasPrice ? _axisBaht(v) : v }, beginAtZero:true }, x:{ ticks:{font:{size:10}} } }
       }
     });
   }
@@ -7483,7 +7483,7 @@ function renderDailySalesReport() {
       },
       scales: {
         x: { grid: { display: false }, ticks: { font: { size: 11 } } },
-        y: { ticks: { font: { size: 11 }, callback: _axisBaht }, grid: { color: 'rgba(0,0,0,0.05)' } }
+        y: {afterFit:sc=>{sc.width=Math.max(sc.width||0,64);},  ticks: { font: { size: 11 }, callback: _axisBaht }, grid: { color: 'rgba(0,0,0,0.05)' } }
       }
     }
   });
@@ -7663,7 +7663,7 @@ function renderReports() {
       plugins:{legend:{labels:{color:'#6b7280',font:{size:11}}}},
       scales:{
         x:{grid:{display:false},ticks:{color:'#9ca3af',font:{size:10}}},
-        y:{grid:{color:'#f1f3f5'},ticks:{color:'#9ca3af',font:{size:10},callback:_axisBaht}},
+        y:{afterFit:sc=>{sc.width=Math.max(sc.width||0,64);},grid:{color:'#f1f3f5'},ticks:{color:'#9ca3af',font:{size:10},callback:_axisBaht}},
       }
     }
   });
@@ -7683,7 +7683,7 @@ function renderReports() {
       plugins:{legend:{display:false}},
       scales:{
         x:{grid:{display:false},ticks:{color:'#9ca3af',font:{size:10}}},
-        y:{grid:{color:'#f1f3f5'},ticks:{color:'#9ca3af',font:{size:10},callback:_axisBaht}},
+        y:{afterFit:sc=>{sc.width=Math.max(sc.width||0,64);},grid:{color:'#f1f3f5'},ticks:{color:'#9ca3af',font:{size:10},callback:_axisBaht}},
       }
     }
   });
@@ -7779,7 +7779,7 @@ function renderReports() {
       plugins:{ legend:{ labels:{ color:'#6b7280', font:{size:10}, boxWidth:10 }}},
       scales:{
         x:{ stacked:true, grid:{display:false}, ticks:{color:'#9ca3af',font:{size:10}} },
-        y:{ stacked:true, grid:{color:'#f1f3f5'}, ticks:{color:'#9ca3af',font:{size:10},callback:_axisBaht} }
+        y:{afterFit:sc=>{sc.width=Math.max(sc.width||0,64);}, stacked:true, grid:{color:'#f1f3f5'}, ticks:{color:'#9ca3af',font:{size:10},callback:_axisBaht} }
       }
     }
   });
@@ -8100,7 +8100,7 @@ function renderPL() {
       responsive:true, maintainAspectRatio:false,
       interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ฿`+Math.round(c.raw).toLocaleString()}}},
-      scales:{y:{grid:{color:'#f1f3f5'}, ticks:{color:'#9ca3af',font:{size:10},callback:_axisBaht}}, x:{grid:{display:false}, ticks:{color:'#6b7280',font:{size:11}}}}
+      scales:{y:{afterFit:sc=>{sc.width=Math.max(sc.width||0,64);},grid:{color:'#f1f3f5'}, ticks:{color:'#9ca3af',font:{size:10},callback:_axisBaht}}, x:{grid:{display:false}, ticks:{color:'#6b7280',font:{size:11}}}}
     }
   });
 
@@ -10493,17 +10493,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     Chart.defaults.transitions = {};
   }
 
-  // ── แก้บั๊กแกน Y กราฟถูกตัดบน iOS (ฟอนต์ Google โหลดช้า → Chart.js จองความกว้างแกนแคบไว้ก่อน) ──
-  // ชั้นที่ 1: บังคับความกว้างแกน Y ฝั่งซ้ายขั้นต่ำ ให้ตัวเลขมีที่พอเสมอ
-  Chart.defaults.scales.linear.afterFit = function(s) {
-    if (s.position === 'left') s.width = Math.max(s.width, 54);
-  };
-  // ชั้นที่ 2: พอฟอนต์โหลดเสร็จ (หรือหลัง 1.5 วิ) สั่งทุกกราฟวัด/วาดใหม่
+  // ── แก้บั๊กแกน Y กราฟถูกตัดบน iOS (Chart.js วัดความกว้างแกนพลาด/เกือบ 0) ──
+  // ชั้นที่ 1: plugin บังคับความกว้างแกน Y ฝั่งซ้ายขั้นต่ำ — การันตีทำงานทุกกราฟ (ต่างจาก default ที่ไม่ merge)
+  Chart.register({
+    id: 'minLeftAxisWidth',
+    beforeInit(chart) {
+      const sc = chart.config.options && chart.config.options.scales;
+      if (!sc) return;
+      Object.keys(sc).forEach(k => {
+        const ax = sc[k];
+        if (!ax) return;
+        const isLeftY = ax.position === 'left' || (k === 'y' && ax.position == null);
+        if (!isLeftY) return;
+        const prev = ax.afterFit;
+        ax.afterFit = function(s) { if (typeof prev === 'function') prev(s); s.width = Math.max(s.width || 0, 60); };
+      });
+    }
+  });
+  // ชั้นที่ 2: พอฟอนต์โหลดเสร็จ (หรือหลัง 1.2 วิ) สั่งทุกกราฟวัด/วาดใหม่
   function _refitAllCharts() {
     try { Object.values(Chart.instances || {}).forEach(ch => { try { ch.resize(); ch.update('none'); } catch (e) {} }); } catch (e) {}
   }
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => setTimeout(_refitAllCharts, 60));
-  setTimeout(_refitAllCharts, 1500);
+  setTimeout(_refitAllCharts, 1200);
 
   const _IS_LOCAL = window.location.protocol === 'file:';
 
