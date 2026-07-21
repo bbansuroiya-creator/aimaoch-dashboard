@@ -10348,6 +10348,14 @@ document.addEventListener('visibilitychange', () => {
         toast('⏱ ออกจากระบบอัตโนมัติเนื่องจากไม่มีการใช้งาน 30 นาที', 'info');
       } else {
         _resetIdleTimer();
+        // iPad/Safari: กลับเข้าแอป → ถ้ามีเซฟค้าง (ล้มเหลวตอนอยู่เบื้องหลัง) ลองซิงค์อัตโนมัติ
+        // ใช้สำเนาในเครื่องเป็นหลัก เผื่อ onSnapshot reconnect ทับ _dbCache ด้วยข้อมูล cloud เก่า
+        if (localStorage.getItem(SK + '_dirty')) {
+          try { const p = JSON.parse(localStorage.getItem(SK)); if (p) _dbCache = p; } catch {}
+          _ensureAuth().then(() => _fsSave(_dbCache))
+            .then(() => toast('✅ ซิงค์ข้อมูลที่ค้างขึ้น Cloud แล้ว', 'success'))
+            .catch(() => _showSaveError('ยังซิงค์ข้อมูลที่ค้างไม่สำเร็จ — กด "ลองบันทึกใหม่"'));
+        }
       }
     }
     _hiddenAt = null;
