@@ -214,6 +214,11 @@ button, input, select, textarea, [onclick], .sb-link, .tab-btn, .btn-sm, label {
   }
   #hamburger-btn { display: flex !important; }
   #content-wrap { margin-left: 0 !important; }
+
+  /* iPad แนวตั้ง: การ์ด/กราฟเรียง 1 คอลัมน์เต็มความกว้าง — กราฟกว้างพอ แกน Y (ตัวเลข ฿) ไม่ถูกตัด */
+  .grid-2 { grid-template-columns: 1fr !important; }
+  .grid-3-1 { grid-template-columns: 1fr !important; }
+  .summary-strip { grid-template-columns: 1fr !important; }
 }
 
 /* Mobile: <768px */
