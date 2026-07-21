@@ -200,10 +200,8 @@ button, input, select, textarea, [onclick], .sb-link, .tab-btn, .btn-sm, label {
   .po-item-row { flex-wrap: wrap !important; }
   .po-item-name { flex: 1 1 100% !important; min-width: 0 !important; margin-bottom: 2px; }
   .po-item-name > div:first-child { white-space: normal !important; overflow: visible !important; }
-}
 
-/* Mobile: <768px */
-@media (max-width: 767px) {
+  /* iPad แนวตั้ง + มือถือ: sidebar สไลด์เปิด/ปิดได้ + ปุ่มแฮมเบอร์เกอร์ */
   #sidebar {
     position: fixed; left: calc(-1 * var(--sidebar-w));
     top: 0; height: 100vh; z-index: 200;
@@ -216,7 +214,10 @@ button, input, select, textarea, [onclick], .sb-link, .tab-btn, .btn-sm, label {
   }
   #hamburger-btn { display: flex !important; }
   #content-wrap { margin-left: 0 !important; }
+}
 
+/* Mobile: <768px */
+@media (max-width: 767px) {
   .page { padding: 14px; }
   #topbar { padding: 0 12px; gap: 8px; }
   #topbar > div:first-of-type { min-width: 0; flex: 1 1 0; overflow: hidden; max-width: calc(100vw - 160px); }
@@ -2952,8 +2953,8 @@ function nav(btn) {
   const pid = btn.dataset.page;
   // permission guard
   if (!hasAccess(pid)) { toast('คุณไม่มีสิทธิ์เข้าถึงหน้านี้','error'); return; }
-  // auto-close sidebar on mobile after navigation
-  if (window.innerWidth < 768) closeSidebar();
+  // auto-close sidebar on mobile/tablet after navigation (iPad แนวตั้งด้วย)
+  if (window.innerWidth < 1024) closeSidebar();
   document.querySelectorAll('.sb-link').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
