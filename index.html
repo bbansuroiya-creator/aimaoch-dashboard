@@ -196,6 +196,10 @@ button, input, select, textarea, [onclick], .sb-link, .tab-btn, .btn-sm, label {
 /* Tablet: 640–1023px */
 @media (max-width: 1023px) {
   .stat-grid { grid-template-columns: repeat(2,1fr) !important; }
+  /* iPad แนวตั้ง/มือถือ: แถวรายการจัดซื้อตกบรรทัด — ชื่อสินค้าขึ้นเต็มบรรทัด ไม่ถูกตัดหาย */
+  .po-item-row { flex-wrap: wrap !important; }
+  .po-item-name { flex: 1 1 100% !important; min-width: 0 !important; margin-bottom: 2px; }
+  .po-item-name > div:first-child { white-space: normal !important; overflow: visible !important; }
 }
 
 /* Mobile: <768px */
@@ -5466,8 +5470,8 @@ function _renderPODaily() {
 
     const rows = dayItems.map(i => {
       const hasPrice = i.unitPrice > 0;
-      return `<div style="display:flex;align-items:center;gap:10px;padding:7px 16px;border-bottom:1px solid var(--ink-100)">
-        <div style="flex:1 1 130px;min-width:110px">
+      return `<div class="po-item-row" style="display:flex;align-items:center;gap:10px;padding:7px 16px;border-bottom:1px solid var(--ink-100)">
+        <div class="po-item-name" style="flex:1 1 130px;min-width:110px">
           <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${i.name||'(ไม่มีชื่อ)'}</div>
           <div style="font-size:11px;color:var(--text-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${i.cat||''}</div>
         </div>
