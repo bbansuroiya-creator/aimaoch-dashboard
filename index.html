@@ -2746,15 +2746,7 @@ async function _fsSave(d, opts = {}) {
   _isSaving = true;
   clearTimeout(_isSavingTimer);
 
-  // ── ต้องมี auth ก่อนเขียน (rules ใหม่ต้องการ request.auth != null) ──
-  // ถ้า auth หลุด → พยายาม re-login ก่อน ถ้ายังไม่ได้ → โยน error (ไม่เขียนแบบเงียบๆ)
-  await _ensureAuth();
-  if (!_auth.currentUser) {
-    _isSaving = false;
-    const err = new Error('เชื่อมต่อระบบยืนยันตัวตนไม่สำเร็จ — ข้อมูลยังไม่ถูกบันทึก กรุณาเช็คอินเทอร์เน็ตแล้วลองใหม่');
-    err.code = 'AUTH_FAILED';
-    throw err;
-  }
+  // (rules เป็นแบบเปิด ไม่ต้องพิสูจน์ auth — iOS จึงเขียนได้เสมอ)
 
   // ─────────────────────────────────────────────────────────────
   // GUARD: กันเครื่องที่ข้อมูลไม่ครบมาเขียนทับข้อมูลที่ครบกว่าใน cloud
@@ -10369,7 +10361,7 @@ document.addEventListener('visibilitychange', () => {
         // ใช้สำเนาในเครื่องเป็นหลัก เผื่อ onSnapshot reconnect ทับ _dbCache ด้วยข้อมูล cloud เก่า
         if (localStorage.getItem(SK + '_dirty')) {
           try { const p = JSON.parse(localStorage.getItem(SK)); if (p) _dbCache = p; } catch {}
-          _ensureAuth().then(() => _fsSave(_dbCache))
+          _fsSave(_dbCache)
             .then(() => toast('✅ ซิงค์ข้อมูลที่ค้างขึ้น Cloud แล้ว', 'success'))
             .catch(() => _showSaveError('ยังซิงค์ข้อมูลที่ค้างไม่สำเร็จ — กด "ลองบันทึกใหม่"'));
         }
@@ -10525,24 +10517,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Local file — use localStorage directly (no Firestore)
     try { _dbCache = JSON.parse(localStorage.getItem(SK)) || {}; } catch {}
   } else {
-    // Hosted version — use Firestore
-    await _ensureAuth();   // ต้องล็อกอิน anonymous ก่อน ไม่งั้น Firestore rules จะปฏิเสธ
+    // Hosted version — use Firestore (rules เปิด ไม่ต้อง auth)
     try {
       const fsData = await _fsLoad();
       const _dirty = localStorage.getItem(SK + '_dirty');
       const _lsRaw = localStorage.getItem(SK);
-      if (_dirty && _lsRaw) {
-        // ── กู้ข้อมูลที่เขียน cloud ไม่สำเร็จค้างอยู่ในเครื่องจากครั้งก่อน ──
-        try {
-          _dbCache = JSON.parse(_lsRaw);
-          toast('♻️ พบข้อมูลที่ยังไม่ได้บันทึกขึ้น Cloud จากครั้งก่อน — กำลังบันทึกให้อัตโนมัติ...', 'warning');
-          _fsSave(_dbCache)
-            .then(() => toast('✅ บันทึกข้อมูลที่ค้างขึ้น Cloud สำเร็จแล้ว', 'success'))
-            .catch(() => _showSaveError('ยังบันทึกข้อมูลที่ค้างไม่สำเร็จ'));
-        } catch {
-          _dbCache = Object.keys(fsData).length > 0 ? fsData : {};
-        }
+      const _cnt = o => (o && ((o.txs||[]).length + (o.po_items||[]).length + (o.daily_inc||[]).length)) || 0;
+      const _cloudN = _cnt(fsData);
+      let _local = null;
+      try { _local = _lsRaw ? JSON.parse(_lsRaw) : null; } catch {}
+      const _localN = _cnt(_local);
+      // กู้ข้อมูลค้างเฉพาะเมื่อ "ข้อมูลในเครื่องไม่ได้น้อยผิดปกติเทียบกับ cloud"
+      // (กันเครื่องที่ localStorage ว่าง/เศษ เช่นเคยโหลดพลาด มาทับ/ค้างข้อมูลจริงบน cloud)
+      if (_dirty && _local && (_cloudN === 0 || _localN >= _cloudN * 0.5)) {
+        // ── มีข้อมูลจริงที่ยังไม่ได้เซฟค้างอยู่ในเครื่อง → กู้คืน ──
+        _dbCache = _local;
+        toast('♻️ พบข้อมูลที่ยังไม่ได้บันทึกขึ้น Cloud จากครั้งก่อน — กำลังบันทึกให้อัตโนมัติ...', 'warning');
+        _fsSave(_dbCache)
+          .then(() => toast('✅ บันทึกข้อมูลที่ค้างขึ้น Cloud สำเร็จแล้ว', 'success'))
+          .catch(() => _showSaveError('ยังบันทึกข้อมูลที่ค้างไม่สำเร็จ'));
       } else if (Object.keys(fsData).length > 0) {
+        // cloud มีข้อมูล (และในเครื่องว่าง/น้อยผิดปกติ) → ใช้ cloud + เคลียร์ธงค้างที่ไม่ถูกต้องทิ้ง
+        try { localStorage.removeItem(SK + '_dirty'); } catch {}
         _dbCache = fsData;
       } else {
         // Firestore empty — migrate from localStorage if available
